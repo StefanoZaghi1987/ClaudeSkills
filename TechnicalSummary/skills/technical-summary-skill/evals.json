@@ -1,0 +1,35 @@
+{
+  "skill_name": "technical-summary-generator",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Ho appena ricevuto il manuale di installazione di una pompa centrifuga industriale in PDF. Puoi farmi un riassunto tecnico in italiano in Word? Lo allego adesso.",
+      "expected_output": "A structured .docx report in Italian with [INTRODUCTION], [DISCUSSED TOPICS] (covering installation steps, technical specs, safety warnings, maintenance), and [SUMMARY] sections. File named summary_*_IT.docx.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Can you summarize the technical content at this URL for me? https://www.anyurl.com/product-datasheet-example — I need it in English as a PDF.",
+      "expected_output": "Claude fetches the URL, analyzes content, asks only for format confirmation (since language is given), then produces a structured PDF summary in English named summary_*_EN.pdf.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Allego tre documenti tecnici (schede tecniche di componenti elettronici). Voglio un unico report che li sintetizzi tutti e tre, in italiano, formato Markdown.",
+      "expected_output": "Claude aggregates all three files into one corpus, analyzes combined content, and produces a single .md file in Italian covering all topics across the three documents.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Here are two URLs from the manufacturer's site: [url1] and [url2]. Generate a technical comparison summary in English as a Word document.",
+      "expected_output": "Claude fetches both URLs, aggregates content, and generates a .docx summary in English that covers topics from both sources, properly structured.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Questo è un articolo scientifico sulla corrosione dell'acciaio inossidabile in ambienti saline. Riassumilo in francese come PDF.",
+      "expected_output": "A structured PDF report in French with introduction, discussed topics (methodology, findings, material properties, conclusions), and summary. Acronyms expanded in French.",
+      "files": []
+    }
+  ]
+}

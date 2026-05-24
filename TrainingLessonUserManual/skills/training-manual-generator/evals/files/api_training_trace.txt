@@ -1,0 +1,198 @@
+[Training Recording Trace - REST API Integration]
+Date: 2024-02-11
+Duration: 90 minutes
+Instructor: Dr. Alessandro Bianchi
+Participants: 8 backend developers
+
+[00:00] INSTRUCTOR: Welcome everyone. Today's session on REST API integration is critical for our microservices architecture project. We'll cover authentication, endpoint design, error handling, and security best practices.
+
+[00:03] INSTRUCTOR: Let's start with API fundamentals. REST stands for Representational State Transfer. It uses standard HTTP methods:
+- GET: Retrieve data
+- POST: Create new resources
+- PUT: Update existing resources  
+- DELETE: Remove resources
+- PATCH: Partial updates
+
+These are the basics you need to know, but the real complexity comes in implementation.
+
+[00:08] INSTRUCTOR: Now, authentication - THIS IS ABSOLUTELY CRITICAL. Never, ever skip authentication. We have three main approaches:
+
+1. API Keys - Simple but less secure
+   Header: X-API-Key: abc123def456
+   
+2. OAuth 2.0 - Industry standard, HIGHLY RECOMMENDED
+   - Authorization Code flow for user-facing apps
+   - Client Credentials for service-to-service
+   Example flow:
+   a) Client requests authorization
+   b) User grants permission
+   c) Client receives access token
+   d) Client uses token for API calls
+
+3. JWT (JSON Web Tokens) - Self-contained tokens
+   Format: header.payload.signature
+   Contains claims about the user
+   Must be validated on every request
+
+[00:18] PARTICIPANT: Which authentication method should we use?
+
+[00:18] INSTRUCTOR: Excellent question! For our project, OAuth 2.0 with JWT tokens. It's secure, scalable, and industry-standard. Let me show you a real implementation...
+
+[Instructor shows detailed code example for 5 minutes]
+
+[00:25] INSTRUCTOR: Moving to endpoint design - another CRITICAL TOPIC. Your API is a contract with consumers. Design it well from the start.
+
+Best practices for endpoint design:
+1. Use nouns, not verbs: /users not /getUsers
+2. Use plural nouns: /products not /product
+3. Nested resources: /users/123/orders
+4. Versioning: /api/v1/users or /api/v2/users
+5. Filtering and pagination: /products?category=electronics&page=2&limit=20
+
+BAD examples:
+- /getAllUsers
+- /user/delete/123
+- /createNewOrder
+
+GOOD examples:  
+- GET /users
+- DELETE /users/123
+- POST /orders
+
+[00:35] INSTRUCTOR: Let's discuss request and response handling. Always use proper status codes:
+
+Success:
+- 200 OK: Successful GET, PUT, PATCH
+- 201 Created: Successful POST
+- 204 No Content: Successful DELETE
+
+Client Errors:
+- 400 Bad Request: Invalid input
+- 401 Unauthorized: Missing/invalid auth
+- 403 Forbidden: Authenticated but not authorized
+- 404 Not Found: Resource doesn't exist
+
+Server Errors:
+- 500 Internal Server Error: Something went wrong
+- 503 Service Unavailable: Temporary issue
+
+[00:42] INSTRUCTOR: Response format should be consistent. Always JSON for modern APIs:
+
+{
+  "status": "success",
+  "data": {
+    "user": {
+      "id": 123,
+      "name": "Mario Rossi",
+      "email": "mario@example.com"
+    }
+  },
+  "metadata": {
+    "timestamp": "2024-02-11T10:30:00Z"
+  }
+}
+
+[00:48] INSTRUCTOR: Now, ERROR HANDLING - absolutely essential. Never expose internal errors to clients. Always return structured error responses:
+
+{
+  "status": "error",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid email format",
+    "field": "email",
+    "timestamp": "2024-02-11T10:35:00Z"
+  }
+}
+
+Common error scenarios you MUST handle:
+1. Validation errors - invalid input data
+2. Authentication failures - invalid credentials
+3. Authorization failures - insufficient permissions
+4. Resource not found - 404 scenarios
+5. Rate limiting - too many requests
+6. Server errors - catch all exceptions
+
+[00:58] PARTICIPANT: How do we handle partial failures in batch operations?
+
+[00:59] INSTRUCTOR: Great question! Return array of results with individual status:
+
+{
+  "status": "partial_success",
+  "results": [
+    {"id": 1, "status": "success"},
+    {"id": 2, "status": "error", "message": "Duplicate entry"},
+    {"id": 3, "status": "success"}
+  ]
+}
+
+[01:02] INSTRUCTOR: Security best practices - pay attention to these:
+
+1. ALWAYS use HTTPS - encrypt data in transit
+2. Validate ALL input - prevent injection attacks
+3. Implement rate limiting - prevent abuse
+4. Use CORS properly - control access from browsers
+5. Never log sensitive data - passwords, tokens, credit cards
+6. Implement request signing - verify request integrity
+7. Keep dependencies updated - patch vulnerabilities
+
+Example rate limiting:
+Headers:
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 999  
+X-RateLimit-Reset: 1613046000
+
+[01:12] INSTRUCTOR: Quick mention of rate limiting implementation. You can use:
+- Token bucket algorithm
+- Sliding window
+- Fixed window
+
+We'll use Redis for distributed rate limiting in our infrastructure.
+
+[01:15] INSTRUCTOR: Testing strategies - I'll be brief since we have a full session on this next week. But you should test:
+- Unit tests for business logic
+- Integration tests for API endpoints
+- Contract tests for API consumers
+- Load tests for performance
+
+Tools: Postman, curl, Jest, PyTest
+
+[01:20] INSTRUCTOR: Let me recap the CRITICAL POINTS:
+
+1. AUTHENTICATION - OAuth 2.0 with JWT is our standard
+   - Never skip auth
+   - Validate tokens on every request
+   - Implement refresh token rotation
+
+2. ENDPOINT DESIGN - This is your API contract
+   - RESTful conventions
+   - Versioning from day one  
+   - Consistent naming
+
+3. ERROR HANDLING - Structured, never expose internals
+   - Use proper status codes
+   - Return helpful error messages
+   - Log everything server-side
+
+4. SECURITY - Multiple layers of defense
+   - HTTPS always
+   - Input validation
+   - Rate limiting
+   - Regular security audits
+
+Other important topics:
+- Request/Response handling - use proper formats
+- Status codes - learn them well
+- Rate limiting - prevents abuse
+- Testing - comprehensive coverage
+
+[01:28] INSTRUCTOR: Your homework: Design a simple API for a blog system with:
+- User authentication
+- CRUD operations for posts
+- Comments on posts
+- Following the patterns we discussed
+
+We'll review these next session. Questions?
+
+[01:30] [Various questions and answers for remaining time]
+
+[END OF RECORDING]

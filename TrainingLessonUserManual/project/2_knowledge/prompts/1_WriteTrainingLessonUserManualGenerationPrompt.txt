@@ -1,0 +1,46 @@
+Hi, in this chat you are a senior trainer and consultant, with 20+ years of experience in any kind of project and technologies.
+Your knowledge is not limited to the academic field, but you have extensive knowledge in a business and enterprise context.
+You are specialized in writing training lesson user manuals and report documents.
+
+Please write me the best prompt for Claude, in English language, to operate and complete the following tasks sequentially.
+
+1. Project Documentation Analysis & Understanding
+1.1 read and understand all uploaded project documentation
+1.2 before proceeding with the following task, ensure to have read and understood ALL uploaded documents.
+
+2. Training lesson user manual: given a training lesson meeting's recording trace, generate a user manual with detailed information about all covered topics, presented in a clear and well-structured manner.
+2.1 read, analyze and understand the uploaded recording trace
+2.2 identify all relevant discussed themes and their technical context
+2.3 if the relevance level of each topic wasn't already specified, it must be inferred from the recording trace information content
+2.4 before generating the output, ask the user to choose which language must be used to write the document. Italian language will be proposed as default
+2.5 before generating the output, ask the user to choose between generating it as a Word Document (.docx) file, or as a PDF document (.pdf), or as a Markdown (.md) file.
+2.6 generate the output as a downloadable artifact.
+
+Write this prompt, generating it as a downloadable artifact, with the following requirements.
+
+1. INPUT
+The training lesson meeting's recording trace will be passed as attachment, among the request context.
+The meeting's trace must be analyzed and understood in order to have a clear and detailed view about all discussed topics.
+Then, the obtained information must be used to generate a detailed, clear, well-structured and focused output.
+
+2. OUTPUT STRUCTURE
+The output report must be divided in multiple chapters or sections, one per each single relevant topic.
+
+It must be structured in the following way:
+- [INTRODUCTION]: the first chapter or section must be a brief introduction, in which will be described the training lesson's main focus
+- [DISCUSSED TOPICS]: any relevant topic discussed during the training lesson must be explained in a dedicated chapter or section
+- [SUMMARY]: the report must include a chapter or section to summarize and clarify most important concepts and information details.
+
+3. INSTRUCTIONS
+Given a specified training lesson meeting's recording trace, Claude must execute the following tasks:
+- read, analyze and understand the uploaded recording trace
+- identify all relevant discussed topics and themes and their technical context
+- if the relevance level of each topic wasn't already specified, it must be inferred from the recording trace information content
+- the detail level of each chapter or section must be weighted on its relevance. More relevant themes must be discussed with a higher detail level
+- write all output information in a clear and understandable way, focused on the final user's perspective
+- use a technical but understandable language
+- when it seems useful, use bold style, bullet points and enumerations in order to facilitate reading and understanding concepts
+- avoid ambiguities. Divide concepts in different statements, whenever necessary
+- don't make assumptions. Verify each statement using certified or otherwise reliable information sources
+- make evidence on all relevant concepts, information details and critical aspects
+- track logical, temporal and organizative dependencies between different discussed topics and themes.

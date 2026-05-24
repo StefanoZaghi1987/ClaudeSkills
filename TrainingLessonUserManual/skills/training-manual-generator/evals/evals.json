@@ -1,0 +1,90 @@
+{
+  "evals": [
+    {
+      "id": "eval-1",
+      "name": "Basic Training - Python Fundamentals",
+      "description": "Short 30-minute training session on Python basics. Tests ability to handle concise content with clear topics.",
+      "prompt": "Generate a comprehensive user manual from this Python fundamentals training recording. Use Italian language and Word format.",
+      "input_files": ["python_basics_training.txt"],
+      "expectations": [
+        "Manual contains an Introduction section with training overview and learning objectives",
+        "Manual identifies and covers at least 4 main topics from the training",
+        "Topics are organized with clear headings and logical hierarchy",
+        "Content depth varies based on topic relevance (more detail for core concepts)",
+        "Manual includes a Summary section with key concepts recap",
+        "Bold formatting is used appropriately for key concepts and critical information",
+        "Output is in Italian language as requested",
+        "Output is in Word format (.docx) as requested",
+        "File is saved with appropriate naming convention including topic and date"
+      ]
+    },
+    {
+      "id": "eval-2",
+      "name": "Complex Training - REST API Integration",
+      "description": "90-minute comprehensive training with multiple topics, dependencies, and varying relevance levels. Tests advanced analysis and adaptive content depth.",
+      "prompt": "I have a recording trace from our REST API integration training. Please create a professional user manual in English, PDF format.",
+      "input_files": ["api_training_trace.txt"],
+      "expectations": [
+        "Manual correctly identifies 6-8 distinct topics from the training",
+        "Relevance levels are appropriately assigned (HIGH/MEDIUM/LOW)",
+        "High-relevance topics receive comprehensive treatment (800+ words)",
+        "Medium-relevance topics receive solid coverage (400-800 words)",
+        "Low-relevance topics are covered concisely (150-400 words)",
+        "Topic dependencies are respected in organization (prerequisites before dependent topics)",
+        "Technical terminology is properly explained and defined",
+        "Multiple practical examples are included for high-relevance topics",
+        "Manual provides step-by-step procedures where applicable",
+        "Summary effectively synthesizes 8-12 key concepts",
+        "Output is in English as requested",
+        "Output is in PDF format (.pdf) as requested"
+      ]
+    },
+    {
+      "id": "eval-3",
+      "name": "Ambiguous Content - Mixed Topics",
+      "description": "Training with unclear structure and mixed relevance signals. Tests inference capabilities and quality warning system.",
+      "prompt": "Turn this training session into a user manual. Format: Markdown.",
+      "input_files": ["mixed_training_notes.txt"],
+      "expectations": [
+        "Skill requests language preference (since not specified)",
+        "Skill successfully infers topic relevance levels despite ambiguity",
+        "Manual is logically organized despite unclear source structure",
+        "Quality checks flag any significant issues or uncertainties",
+        "Manual notes limitations or inferred information where appropriate",
+        "Output is in Markdown format (.md) as requested",
+        "Content maintains professional quality despite source limitations"
+      ]
+    },
+    {
+      "id": "eval-4",
+      "name": "Multi-file Training - Complete Course",
+      "description": "Training session split across multiple recording files. Tests integration and synthesis capabilities.",
+      "prompt": "Create a comprehensive manual from these training session recordings. Language: Italian, Format: Word.",
+      "input_files": ["session1_intro.txt", "session2_advanced.txt", "session3_practice.txt"],
+      "expectations": [
+        "All files are successfully analyzed and integrated",
+        "Content from different sessions is synthesized cohesively",
+        "No duplicate or contradictory information",
+        "Logical flow maintained across integrated content",
+        "Topics from different sessions are appropriately organized",
+        "Manual reads as unified document, not separate sections",
+        "All source files are acknowledged in processing"
+      ]
+    },
+    {
+      "id": "eval-5",
+      "name": "Automatic Mode - Quick Generation",
+      "description": "Tests fully automatic mode with minimal user interaction.",
+      "prompt": "Generate training manual automatically, use all defaults.",
+      "input_files": ["standard_training.txt"],
+      "expectations": [
+        "Skill uses default language (Italian) without prompting",
+        "Skill uses default format (Word) without prompting",
+        "Manual is generated with minimal user interaction",
+        "Quality checks run automatically without displaying unless issues found",
+        "Final output is delivered promptly with brief confirmation"
+      ]
+    }
+  ],
+  "eval_notes": "These test cases cover key scenarios: basic content, complex analysis, ambiguous input, multi-file integration, and automatic mode. Each eval tests specific skill capabilities while ensuring overall quality standards."
+}
