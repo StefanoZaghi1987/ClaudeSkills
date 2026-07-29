@@ -30,7 +30,7 @@ Every development session follows this sequence:
 4. **Implementation** — execution driven by the plan, frequently parallelized across sub-agents.
 5. **Code review**, followed by bug fixing and subsequent modifications as needed.
 
-This structure is deliberate and must be preserved. Any recommendation that requires abandoning or restructuring it is out of scope.
+This structure is deliberate and must be preserved. Any recommendation that requires abandoning or restructuring it is out of scope. Interventions graft onto the existing phases; they do not add phases.
 
 ### Environment
 
@@ -39,6 +39,8 @@ This structure is deliberate and must be preserved. Any recommendation that requ
 - Large, long-lived enterprise codebase; any arbitrary technological stack.
 - Significant amounts of accumulated project documentation, in-code comments, specs, implementation plans, and years of revisions and bug-fix history.
 - All documentation and specification maintenance work is performed **by coding agents**, not by hand. This is a hard constraint: every recommendation must be executable by an agent and verifiable by a human reading a diff.
+
+**Stack neutrality.** Nothing produced may depend on a specific technological stack. Where this prompt names concrete technologies (.NET, React, TypeScript, SQL, SAP B1, SAP B1 Service Layer, Beckhoff TwinCAT), they are **illustrations of a category** — "an external constraint the code cannot state about itself" — and must be presented as such in the deliverables, never as project facts or as a committed stack.
 
 ### The observed problem
 
@@ -55,7 +57,9 @@ The need is therefore **periodic consolidation**: collapsing accumulated revisio
 
 ### Diagnosis to encode in the project
 
-The append behavior is not a defect; it is a rational response to an incentive. Deleting information requires knowledge the agent does not have (*is this still true? does anything depend on it?*), while appending is always safe. Unless a document explicitly states where history lives, the agent assumes history lives in that document and preserves it.
+The append behavior is not a defect; it is a rational response to an incentive. Deleting information requires knowledge the agent does not have (*is this still true? does anything depend on it?*), while appending is always safe — it never loses anything, and the cost it imposes is paid later, by someone else, in a different session. Unless a document explicitly states where history lives, the agent assumes history lives in that document and preserves it.
+
+A practical consequence: instructing agents to "be concise" or "avoid redundancy" does not fix this, because it does not change the incentive. Changing the incentive means telling the agent, in the artifact itself, where history belongs instead.
 
 The root cause is that documents are performing two incompatible functions simultaneously: **describing current state** and **recording history**. These have opposite lifecycles — the first must be rewritten, the second is immutable by definition. Keeping both in the same file guarantees accumulation.
 
@@ -68,24 +72,29 @@ The root cause is that documents are performing two incompatible functions simul
 | ADR | **Append-only log** | One file per decision, immutable, with `status: accepted \| superseded-by ADR-NNN`. All historical rationale that currently pollutes specs belongs here. |
 | Code comments | **State** | Explain why the code is the way it is *now*. Never "fix for bug #1234" — that is a commit message, already in git. |
 
+**Reconciliation of merge-time realignment with the separate-commit rule.** "Re-aligned to reality at merge time" and "consolidation is always a separate commit, never mixed with functional changes" are reconciled as follows: the realignment is **a separate commit inside the same pull request** as the functional change. Same PR, distinct commit, independently readable diff. State this resolution explicitly in the deliverables rather than leaving the reader to infer it.
+
 ### Positions already settled — treat these as decided, do not re-litigate
 
 - The source of truth about *what the system does* is **the code itself**, not the comments. Comments can lie, and are the only artifact in the repository that can lie without immediate consequence — no test breaks. Comments must therefore be **compacted, not annotated**: they should carry only current truth.
 - The operational rule for comments is not "keep comments true" but **"reduce the surface of what can lie."** A comment that restates the code must be **deleted, not compacted** — it adds nothing and can diverge. This category is large in AI-assisted codebases, because models comment generously by default.
-- Only comments carrying what the code cannot say about itself survive: the reason for a non-obvious choice, an external constraint (SAP B1 / Service Layer behavior, a TwinCAT quirk), a rejected alternative and why, an invariant not expressible in the type system. This category must be **defended conservatively** during consolidation.
+- The bright line for "restates the code" is **regenerability**: if the comment could be reconstructed from the signature, the identifiers, and the control flow alone, it is redundant and is deleted. If reconstructing it would require knowing something not present in the file, it is not redundant, however obvious it looks. This test exists because "looks redundant" is exactly where an LLM misjudges — a one-line comment stating an invariant reads like a restatement.
+- Only comments carrying what the code cannot say about itself survive: the reason for a non-obvious choice, an external constraint (illustratively: SAP B1 / Service Layer behavior, a TwinCAT quirk), a rejected alternative and why, an invariant not expressible in the type system. This category must be **defended conservatively** during consolidation. The failure modes are asymmetric: keeping one redundant line costs tokens, deleting one genuine invariant costs a defect.
 - Historical bug-fix references in comments are not to be compacted but **relocated** — to a commit message or an ADR.
+- **A comment that disagrees with the code is not automatically a stale comment.** The agent can observe divergence; it cannot determine which side is wrong, because it cannot distinguish intended behavior from a defect. Divergence is therefore **escalated as a suspected defect**, never silently resolved by rewriting the comment to match the code. Without this rule, the comment-consolidation skill launders bugs into documentation, and the laundering is invisible in review precisely because the resulting comment is accurate about the code.
 - Implementation plans are **archived, not deleted** — but archived plans must be invisible to retrieval. A readable archived plan is worse than a deleted one: it carries the authority of a spec and the content of an intention.
-- Plan status marking (`completed`) happens **at merge, immediately**; physical archiving happens **later, at the author's discretion**. These two events are deliberately decoupled. The reason: between merge and archiving, a live plan saying "I will do X" coexists with a spec saying "the system does Y", and if implementation diverged from the plan (it always does), the agent has two sources in conflict and no criterion for preferring one.
-- If, at the end of a feature, the plan contains information that would be painful to lose, that information belonged in the spec or in an ADR and never made it there. It is a signal about a missed transfer, not a reason to keep the plan alive.
+- Plan status marking (`completed`) happens **at merge, immediately**; physical archiving happens **later, at the author's discretion**. These two events are deliberately decoupled. The reason: between merge and archiving, a live plan saying "I will do X" coexists with a spec saying "the system does Y", and if implementation diverged from the plan (it always does), the agent has two sources in conflict and no criterion for preferring one. The status field supplies the criterion at zero cost, independently of when the file physically moves.
+- If, at the end of a feature, the plan contains information that would be painful to lose, that information belonged in the spec or in an ADR and never made it there. It is a signal about a missed transfer, not a reason to keep the plan alive. The correct response is to move the content to its proper artifact, then let the plan die on schedule.
 - **Default is implicit:** unmarked content is current. Annotating a paragraph as "still true" is noise that ages worse than the content itself — a six-month-old `verified: true` is a false claim wearing a guarantee.
 - **No meta-annotation inside code comments, ever.** A comment describing the verification status of another comment is the bottom of the barrel.
-- The only persistent marker worth defending is per-document, not per-paragraph: `last-verified-at: <commit-sha>` in the front matter. It costs nothing, ages informatively rather than deceptively, and gives the agent a signal about how much to trust the file.
+- The only persistent marker worth defending is per-document, not per-paragraph: `last-verified-at: <commit-sha>` in the front matter. It costs nothing, ages informatively rather than deceptively (a sha 400 commits behind is a real signal; a stale `verified: true` is a lie), and gives the agent a signal about how much to trust the file. It applies to documents with front matter; code comments have no such carrier, which is consistent with the prohibition above.
+- **Retrieval exclusion is the primary lever; deletion is the secondary one.** The same mechanism that makes archived plans invisible to retrieval works on any low-value document, at near-zero risk and with no irreversible step. Deletion's marginal gain over exclusion is small; its downside is unrecoverable. Deletion is therefore a **two-phase operation**: exclude from retrieval first, delete later if nothing missed it.
 
 ### Rules vs. skills — the split to encode
 
 These are not alternatives. **Rules prevent accumulation; skills repair what accumulated anyway.** Rules alone leave the pre-existing debt untouched (they do not apply retroactively); skills alone condemn the project to perpetual maintenance.
 
-The assignment criterion is mechanical: a directive belongs in a **rule** if it must apply *always, at zero activation cost*; it belongs in a **skill** if it is a *rare, multi-phase procedure with risk of information loss*.
+The assignment criterion is mechanical: a directive belongs in a **rule** if it must apply *always, at zero activation cost*; it belongs in a **skill** if it is a *rare, multi-phase procedure with risk of information loss*; it belongs in a **script or hook** if a shell command could do it.
 
 **Rules** (`CLAUDE.md`, deliberately kept under ~20 lines for this domain — a 300-line `CLAUDE.md` is no longer a rule set, it is documentation the agent dilutes):
 
@@ -95,27 +104,42 @@ The assignment criterion is mechanical: a directive belongs in a **rule** if it 
 - the implicit default: unmarked = current;
 - the obligation to **flag rather than rewrite** anything that is no longer verifiable.
 
+**Scope of the justification requirement.** The line budget does not accommodate a justification on every rule, and attaching one to all five would break the budget. Justifications are attached to the **two rules the agent will otherwise rationalize its way around** — the no-append rule and the comment policy — because both ask the agent to destroy information. The remaining three are declarative and self-enforcing. Do not treat "rules carry their justification" as a universal that conflicts with the line budget; treat it as targeted.
+
 **Skills — exactly two.** The division criterion is *not* the artifact type but **what truth is verified against, and who has the final word**:
 
-1. **Comment consolidation.** Truth source: the code, inside the repository. The agent can decide autonomously — read the function, compare the comment, delete the redundant, collapse historical layers, relocate bug-fix references. High volume, per-file or per-module scope, output verifiable by reading the diff, little human judgment required.
+1. **Comment consolidation.** Truth source: the code, inside the repository. The agent can decide autonomously on redundancy and on collapsing historical layers — read the function, compare the comment, delete the regenerable, collapse stacked notes, relocate bug-fix references. It may **not** decide autonomously when comment and code disagree; that escalates. High volume, per-file or per-module scope, output verifiable by reading the diff, little human judgment required.
 2. **Spec and design-doc consolidation.** Truth source: the code **plus** business rules that live outside the repository. The agent cannot close the loop alone. It produces the exhaustive classification, rewrites what is verifiable, and hands over a `## To be confirmed` section. Low volume, high risk, human arbitration mandatory.
 
 Merging these two into one skill costs twice: irrelevant instructions get loaded (half the procedure never applies), and — worse — the trigger description becomes generic, so the skill fires when it shouldn't and fails to fire when it should. Trigger precision is the real design constraint of skills. Fragmenting into five has the opposite problem: overlapping triggers, arbitrary selection, and loss of the ability to reason about what was actually done.
+
+**Shared machinery, not duplicated prose.** Both skills face the same scoping problem, and the strategy for solving it must live in **one place both skills invoke** — a target-set selection script over the knowledge graph — not as two prose scoping sections inside two skill definitions. Two prose copies of the same strategy drift, and the drift is silent. The skills differ in what they do with the target set, not in how they choose it.
 
 **Neither rule nor skill** — these are mechanical operations that must not consume a context load to perform what `sed` would do:
 
 - marking a plan `completed` → a merge-checklist step or a hook;
 - archiving plans and excluding them from retrieval → a script plus retrieval configuration;
+- excluding low-value documents from retrieval (phase one of deletion) → the same script and configuration;
+- target-set selection for both consolidation skills → a single shared script over the knowledge graph, invoked by both;
 - updating `last-verified-at` → a side effect of a skill, not a skill.
 
 ### The consolidation procedure
 
-1. **Commit first.** Consolidation is always a separate commit, never mixed with functional changes. The diff must be readable as a semantic diff, which is what makes it reversible.
-2. **Classify before rewriting.** Pass 1 labels every paragraph as `still true` / `obsolete` / `historical decision → ADR` / `not verifiable`. Only then rewrite. Without this forcing pass, the agent jumps straight to synthesis and that is where loss occurs.
-3. The classification is **exhaustive but ephemeral**: it goes to a scratch report (e.g. `consolidation-report.md`, not committed) or to chat — never into the persisted document. Rationale: if the agent flags only what it believes obsolete, silence becomes ambiguous between "verified, current" and "never examined" — two radically different things the human cannot distinguish. And "never examined" is the common case, because attention over a long document is not uniform: agents work well at the beginning and the end and skim the middle. Exhaustive classification is a forcing function that makes **coverage** visible. The verdict per paragraph matters less than the guarantee that every paragraph was looked at.
-4. **Verify against the code, not against the document.** Nothing survives unless it is verifiable in the current code or is a genuine decision, constraint, or rationale. The code is the truth about *what it does*; the unique value of documents is the *why* and what was rejected.
-5. **`not verifiable` is the critical bucket.** It is never deleted silently: it goes into a `## To be confirmed` section in the document and escalates to the human. That section legitimately belongs in the persisted document, because it represents open work assigned to a person — not metadata.
-6. **Review the removed lines, not the result.** Reading the final document does not reveal what was lost; reading the `-` lines does.
+1. **Commit first.** Consolidation is always a separate commit, never mixed with functional changes. The diff must be readable as a semantic diff, which is what makes it reversible. At merge time this means a separate commit within the same pull request.
+2. **Scope before classifying.** Run the shared target-set selection script. Blanket scope is the failure mode, not the safe default.
+3. **Classify before rewriting.** Pass 1 labels every paragraph — or every comment — as one of:
+   - `still true`
+   - `obsolete`
+   - `historical decision → ADR`
+   - `contradicts code → suspected defect`
+   - `not verifiable`
+
+   Only then rewrite. Without this forcing pass, the agent jumps straight to synthesis and that is where loss occurs.
+4. The classification is **exhaustive but ephemeral relative to the document**: it never enters the persisted document. Its destination is the **body of the consolidation commit message**, which is immutable, outside retrieval, attached to the exact diff it describes, and still available in six months when someone asks what the pass actually looked at. A scratch report (e.g. `consolidation-report.md`, not committed) or chat output is an acceptable fallback where a commit message is impractical, but it discards the coverage evidence immediately after a single use. Rationale for exhaustiveness: if the agent flags only what it believes obsolete, silence becomes ambiguous between "verified, current" and "never examined" — two radically different things the human cannot distinguish. And "never examined" is the common case, because attention over a long document is not uniform: agents work well at the beginning and the end and skim the middle. Exhaustive classification is a forcing function that makes **coverage** visible. The verdict per paragraph matters less than the guarantee that every paragraph was looked at.
+5. **Verify against the code, not against the document.** Nothing survives unless it is verifiable in the current code or is a genuine decision, constraint, or rationale. The code is the truth about *what it does*; the unique value of documents is the *why* and what was rejected.
+6. **`contradicts code → suspected defect` is never resolved by the agent.** The comment or statement is left in place, unmodified, and the divergence is reported. Rewriting documentation to match code that may itself be wrong is the one failure mode that produces a clean diff and a worse system.
+7. **`not verifiable` is the critical bucket.** It is never deleted silently: it goes into a `## To be confirmed` section in the document and escalates to the human. That section legitimately belongs in the persisted document, because it represents open work assigned to a person — not metadata. This is the sole exception to the no-per-paragraph-metadata rule, and it is an exception on those grounds specifically.
+8. **Review the removed lines, not the result.** Reading the final document does not reveal what was lost; reading the `-` lines does.
 
 ### Triggers
 
@@ -131,15 +155,24 @@ Calendar-based triggers are inferior to event-based ones. Doing it "by feel ever
 
 ### The asymmetry that must be explicit
 
-On technical details the agent may decide autonomously what is obsolete, because it can verify. **On business rules it may not**, because the source of truth lives outside the repository. This distinction has to be written explicitly into the skills, otherwise the outcome is technically impeccable consolidations that delete a regulatory constraint nobody had implemented yet.
+The naïve two-tier version — "technical details the agent decides, business rules it escalates" — is insufficient, because it hands the agent authority over cases where it can see a fact but not interpret it. Encode **three tiers**:
+
+| Tier | Truth source | Agent authority |
+|---|---|---|
+| **Code-verifiable** | The code, unambiguously | Decides autonomously. Redundant comments deleted, obsolete statements rewritten, stacked layers collapsed. |
+| **Code-visible, intent-ambiguous** | The code shows a divergence, but not which side is correct | **Reports, does not resolve.** A comment/spec statement that contradicts the code is a suspected defect, not a stale document. |
+| **External truth** | Business rules, regulation, contracts — outside the repository | **Escalates.** No autonomous deletion under any circumstance. |
+
+The middle tier is the one that gets omitted and the one that causes the most expensive failures. Without the top tier's boundary made explicit, the outcome is technically impeccable consolidations that delete a regulatory constraint nobody had implemented yet — a deletion invisible in review precisely because it is technically correct. Without the middle tier, the outcome is documentation quietly rewritten to describe a bug as intended behavior.
 
 ### Critical positions to carry into the project — do not soften these
 
 - **The optimization target is upstream, not downstream.** Reducing after the fact costs far more than not accumulating in the first place. If only one thing gets built, it is append-resistant documents by construction. The consolidation skills are maintenance, not the solution.
-- **Many documents should not be compacted — they should be deleted.** A significant share of documentation in an AI-assisted codebase is write-once, read-never: produced because producing it was cheap. The question to ask of every file is "if this disappeared, what would break?" Aggressive deletion returns more than accurate compaction, and costs less.
+- **Many documents should not be compacted — they should be removed from play.** A significant share of documentation in an AI-assisted codebase is write-once, read-never: produced because producing it was cheap. The question to ask of every file is "if this disappeared, what would break?" Aggressive removal returns more than accurate compaction, and costs less. Execute it as retrieval exclusion first and deletion second: the context-cost benefit is captured entirely by exclusion, and the irreversible step buys almost nothing extra.
 - **The enemy is not length, it is contradiction.** A long, coherent, true document costs tokens. A short one with three conflicting statements costs correctness — and hours spent working out why the agent implemented the wrong rule. Optimize non-contradiction first, brevity second.
-- **Both skills are, first and foremost, scoping problems.** The expensive part is not rewriting; it is deciding which files to work on. Blanket-consolidating a large module is the most reliable way to blow the context window and get a shallow pass through the middle. The target-set selection strategy must be defined before the procedure, and the existing knowledge graph is the natural instrument for it. This determines whether the skills are usable or merely elegant.
+- **Both skills are, first and foremost, scoping problems.** The expensive part is not rewriting; it is deciding which files to work on. Blanket-consolidating a large module is the most reliable way to blow the context window and get a shallow pass through the middle. The target-set selection strategy must be defined before the procedure, must live in shared machinery rather than in each skill's prose, and the existing knowledge graph is the natural instrument for it. This determines whether the skills are usable or merely elegant.
 - **Recommended sequencing:** ship the rules first and build nothing else for roughly two weeks. Rules are the highest value-to-cost intervention and they are *diagnostic* — after two weeks of observation it becomes clear which of the two skills is actually needed and which was imagined for symmetry. Expected outcome (a prediction, worth less than the observation): rules absorb most of the problem on new documents, and the skill actually needed is the comment one, where pre-existing debt is largest and rules do not reach retroactively.
+- **Specified is not scheduled.** Both skills are fully specified in the project knowledge document; only the rules are scheduled first. Specifying both is cheap, sharpens the rules by forcing the boundaries to be drawn, and costs nothing as long as neither is built during the observation window. Do not read the sequencing advice as a reason to leave a skill under-specified.
 
 ---
 
@@ -160,19 +193,19 @@ The exhaustive knowledge document. It must be usable as the single reference tha
 Required coverage:
 
 - the workflow in use, and the fact that it is a fixed constraint;
-- the environment: Claude Code, plugin-based workflow, knowledge graph, tech stack, codebase scale;
-- the observed problem, stated precisely, including why the append behavior is rational rather than defective;
+- the environment: Claude Code, plugin-based workflow, knowledge graph, codebase scale, and explicit stack neutrality;
+- the observed problem, stated precisely, including why the append behavior is rational rather than defective, and why exhortations to concision do not address it;
 - the root-cause diagnosis (state vs. history conflation);
-- the artifact taxonomy, as a table, with lifecycle rules per artifact;
-- the settled positions listed above, presented as decisions rather than open questions;
-- the rules-vs-skills split with the assignment criterion;
-- the two skills, their scope boundaries, their truth sources, their automation levels, and why they are two and not one or five;
+- the artifact taxonomy, as a table, with lifecycle rules per artifact, including the reconciliation of merge-time realignment with the separate-commit rule;
+- the settled positions listed above, presented as decisions rather than open questions — including the regenerability test for redundant comments, the divergence-escalation rule, and the retrieval-exclusion-before-deletion sequence;
+- the rules-vs-skills split with the assignment criterion, and the targeted scope of the justification requirement against the `CLAUDE.md` line budget;
+- the two skills, their scope boundaries, their truth sources, their automation levels, their shared scoping machinery, and why they are two and not one or five;
 - the operations that belong to neither rules nor skills;
-- the consolidation procedure, step by step, including the ephemeral-classification rationale;
+- the consolidation procedure, step by step, including the ephemeral-classification rationale and the commit-message destination;
 - correct and incorrect triggers;
-- the technical/business asymmetry;
+- the three-tier verification asymmetry, as a table;
 - the critical positions, kept sharp;
-- an explicit **open questions** section for what remains genuinely undecided (target-set selection heuristics via the knowledge graph; how to measure whether consolidation is actually reducing context cost; how to detect contradiction across documents rather than within one; where the boundary sits between an aggressively deleted document and lost institutional knowledge).
+- an explicit **open questions** section for what remains genuinely undecided (target-set selection heuristics via the knowledge graph; how to measure whether consolidation is actually reducing context cost; how to detect contradiction across documents rather than within one; where the boundary sits between an aggressively removed document and lost institutional knowledge; what happens to a suspected-defect report once escalated, given that the workflow has no defined intake for it).
 
 Constraints:
 
@@ -191,9 +224,10 @@ Required content:
 - **Standing assumptions:** the workflow is fixed; all documentation work is executed by coding agents; the settled positions in the overview are not to be re-litigated unless new evidence is presented.
 - **Response discipline:** answer the question asked before broadening; do not restate the problem back before answering; prefer concrete procedure over principle; when a recommendation has a cost, name the cost.
 - **Distinguish rule-shaped from skill-shaped:** whenever a new directive is proposed in conversation, classify it using the mechanical criterion (always-on and zero-cost → rule; rare, multi-phase, loss-prone → skill; mechanical → script or hook) and say so explicitly.
-- **Deliverable conventions:** rules must be drafted with their justification attached; skills must specify trigger conditions, scope-selection strategy, and the human-arbitration boundary; procedures must specify what the human reviews and how (diff-based, removed lines first).
-- **Anti-patterns to refuse:** proposing a single monolithic consolidation skill; recommending calendar-based triggers; adding per-paragraph verification metadata; adding meta-annotation to code comments; suggesting mid-implementation consolidation; expanding `CLAUDE.md` beyond a compact rule set; proposing anything that requires the human to review a rewritten document rather than a diff.
-- **Escalation rule:** when a question touches a business rule whose truth source lies outside the repository, do not resolve it — surface it and ask.
+- **Apply the three-tier asymmetry by default:** before endorsing any autonomous agent action on a document or comment, state which tier it falls in. Anything in the middle or outer tier is reported or escalated, not resolved.
+- **Deliverable conventions:** rules must be drafted with their justification attached where the rule asks the agent to destroy information; skills must specify trigger conditions, the shared scope-selection strategy they invoke, and the human-arbitration boundary; procedures must specify what the human reviews and how (diff-based, removed lines first).
+- **Anti-patterns to refuse:** proposing a single monolithic consolidation skill; recommending calendar-based triggers; adding per-paragraph verification metadata; adding meta-annotation to code comments; suggesting mid-implementation consolidation; expanding `CLAUDE.md` beyond a compact rule set; proposing anything that requires the human to review a rewritten document rather than a diff; rewriting a comment or spec statement to match code when the two disagree, instead of reporting a suspected defect; duplicating the scope-selection strategy inside each skill instead of invoking shared machinery; recommending irreversible deletion where retrieval exclusion captures the same benefit.
+- **Escalation rule:** when a question touches a business rule whose truth source lies outside the repository, do not resolve it — surface it and ask. Same for an observed divergence between documentation and code.
 - **Format preferences:** clear and complete explanations; no unnecessary caveats; no filler openings; Markdown headings and tables where they aid scanning; artifacts for anything intended to be saved, kept, or reused.
 
 Constraints:
@@ -211,3 +245,4 @@ Constraints:
 - Do not summarize the three documents back at length after producing them; a brief note on what each file is for is sufficient.
 - If any part of this prompt appears internally inconsistent or under-specified, state the issue explicitly before producing the artifacts rather than resolving it silently.
 - Where you disagree with a position stated above, produce the artifacts as specified **and** add your objection separately in chat. Do not encode your disagreement into the artifacts without flagging it.
+- **This prompt is itself subject to the taxonomy it describes.** It is a state document. Revisions edit it in place; they do not append a "Revision N" section. The record of what changed belongs in the commit message or in chat, never in the body.
