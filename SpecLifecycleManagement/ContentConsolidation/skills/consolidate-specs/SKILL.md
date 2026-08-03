@@ -17,6 +17,10 @@ Reasoning for every cited entry is in `~/.claude/documentation-lifecycle.md`. Th
 
 This skill ships a runner: `scripts/consolidate_specs.py` (stdlib-only Python 3). Invoke any gate as `python "<this skill's directory>/scripts/consolidate_specs.py" <gate>`. Each script the procedure names is a subcommand: `target-set`, `coverage-check`, `scope-cross-check`, `baseline-ancestry-check`, `bound-check`, `removal-authorization-check`, `floor-staleness-check`, `escalate`. `target-set` takes `--pass-kind document|severance`. Run `… self-test` to verify the install.
 
+The gates read `pass_kind` from the record header and switch on it: a `severance` record's coverage is counted in reference occurrences, and `severed` is the disposition that authorizes a removal. Where the inventory is unavailable, `coverage-check --target PATH…` names the excluded targets directly.
+
+Two subcommands carry the procedure's step distinction in a flag. `bound-check --judgement --project-lines` is the step-five projection; `bound-check --measured` is the step-seven measurement against the tree; `bound-check` with no flag is the review-unit gate, enforcing both halves. `baseline-ancestry-check --unit-gate` adds step nine's parenthood clause to the ancestry check.
+
 **Graceful degradation.** The runner is safe by construction — conservative deletion plus a human reading the removed lines is the real control (`S13`) — so it runs whether or not a project has the infrastructure the controlled tier assumes:
 
 | Infrastructure in `.consolidation.json` | Behaviour |
@@ -42,6 +46,7 @@ The controlled tier switches on automatically when configured; until then this i
 | `UNIT_RULE_ENUMERATION` | `document`: paragraphs (blank-line blocks); `severance`: one inbound reference occurrence — pragmatic, not closed (`O2`) |
 | `REVIEW_UNIT_IDENTITY` | the isolation commit's baseline sha |
 | `MECHANICAL_REMOVAL_MARK` | commit subject prefix `mechanical:` |
+| `CONSOLIDATION_COMMIT_MARK` | commit subject prefix `consolidation:`. With `mechanical:`, this is the pair the gate reads to tell a consolidation-class commit from a functional one, and therefore to delimit the review unit (`O9`) |
 | `FLOOR_STALENESS_THRESHOLD` | 7 days (default) |
 
 **Conservative cap defaults** (uncalibrated, `O8`): `REMOVED_LINE_CAP` 200, `REMOVAL_JUDGEMENT_CAP` 30, `SPOT_CHECK_RATE` 0.25, `FUNCTIONAL_DIFF_THRESHOLD` 400, `ADDED_LINE_CEILING` 200.
@@ -63,7 +68,7 @@ basis: legacy HMAC path removed
 
 An optional `narrowing_reason:` header line records why a declared scope is narrower than the target set; `scope-cross-check` requires it when it is, so a silent narrowing is not indistinguishable from evasion (`S93`).
 
-**Config** — `<project-root>/.consolidation.json` (optional, JSON): any cap key overrides its default; `knowledge_graph`, `exclusion_inventory` (commands), and `intake_path` are also read. Absent file = run on defaults = no graph, no calibrated caps, severance disabled.
+**Config** — `.consolidation.json` (optional, JSON), found by walking up from the working directory to the project root, so a gate invoked from a subdirectory does not silently run on defaults. Any cap key overrides its default; `knowledge_graph`, `exclusion_inventory` (commands), and `intake_path` are also read; an unrecognized key is reported rather than absorbed. Absent file = run on defaults = no graph, no calibrated caps, severance disabled.
 
 ---
 
@@ -205,13 +210,13 @@ Each verification precedes the step it authorizes. The single exception is decla
    | `bound-check --judgement` | The record | Countable entries exceed `REMOVAL_JUDGEMENT_CAP` (`S80`) |
    | `bound-check --project-lines` | The record; the baseline tree | Summed baseline lines of removal-authorizing units exceed `REMOVED_LINE_CAP`; an upper bound, so a re-scope decision surfaced to the author rather than an automatic failure (`S80`) |
 
-   For a `severance` pass, `coverage-check` recomputes the unit count by searching the declared scope at baseline for references to the targets the exclusion inventory enumerates (`S85`).
+   For a `severance` pass, `coverage-check` recomputes the unit count by searching the declared scope at baseline for references to the targets the exclusion inventory enumerates (`S85`). The runner counts an occurrence per appearance of a target's basename, which catches a path reference and a bare filename alike; two excluded targets sharing a basename over-count, and the distinguishing reference text is then passed as `--target`.
 
    **What this buys, precisely.** The count check defeats omission and duplication within the declared scope and nothing else. The cross-check raises the floor under scope plausibility without establishing that the scope was right. Neither defeats skimming; skimming is addressed by the citation requirement in step four plus the human spot-check in step ten (`S148`). These pre-rewrite checks read a record in the author's working tree and are therefore **not** controls (`S82`).
 
-6. **Rewrite.** Only now. `document` pass: edit the sentence; never append a revision. Relocate historical rationale to an ADR — one file per decision, body immutable, status the single mutable field (`S32`). Write the `## To be confirmed` section from the `not verifiable` bucket. Isolate reflow, renumbering and any front-matter write into their own mechanical commit inside the review unit, contributing zero to both caps and exempt from removal authorization (`S90`, `S162`); how the gate recognizes mechanical removal is `O17`, and while it is open the exemption is a hole in the removal-authorization check. `severance` pass: remove the reference occurrences disposed `severed` and update the exclusion inventory with what was severed — a mandatory step attached to the severance itself, performed regardless of who performs the severance, because otherwise the recovery data is missing during exactly the phase in which a human does the severing (`S112`, `S104`).
+6. **Rewrite.** Only now. `document` pass: edit the sentence; never append a revision. Relocate historical rationale to an ADR — one file per decision, body immutable, status the single mutable field (`S32`). Write the `## To be confirmed` section from the `not verifiable` bucket. Isolate reflow, renumbering and any front-matter write into their own commit marked `MECHANICAL_REMOVAL_MARK` inside the review unit, contributing zero to both caps and exempt from removal authorization (`S90`, `S162`); how the gate recognizes mechanical removal is `O17` — the runner reads the mark and exempts a removed line whose content a mechanical commit also removed, reporting the count of exemptions applied, and while `O17` is open that content match is the hole in the removal-authorization check. `severance` pass: remove the reference occurrences disposed `severed` and update the exclusion inventory with what was severed — a mandatory step attached to the severance itself, performed regardless of who performs the severance, because otherwise the recovery data is missing during exactly the phase in which a human does the severing (`S112`, `S104`).
 
-7. **Measure the line half.** The measured count exists only after the rewrite — the single declared exception to check-before-step ordering (`S149`). **Remedies, enumerated in advance and exhaustive:** split across review units and re-run, or discard and re-scope. Raising the cap, redistributing across more commits inside the same unit, and fanning out across agents are not remedies (`S81`).
+7. **Measure the line half.** Run `bound-check --measured`. The measured count exists only after the rewrite — the single declared exception to check-before-step ordering (`S149`). Lines removed by a `mechanical:` commit are excluded from the measurement, per the exemption at step six. **Remedies, enumerated in advance and exhaustive:** split across review units and re-run, or discard and re-scope. Raising the cap, redistributing across more commits inside the same unit, and fanning out across agents are not remedies (`S81`).
 
 8. **Materialize the record inside the review unit** through slot `RECORD_CHANNEL` (`S84`, `O10`): a commit message body in a fixed machine-readable format placed in the last consolidation-class commit of the unit (`S169`), or a retrieval-excluded committed file in its own commit ordered after every content-removing commit and first only where the unit contains none (`S24`, `S139`). Where both realignment and severance are present in one unit, realignment precedes severance (`S24`). Where a unit would otherwise contain no commit at all, the committed-file channel is mandatory (`S169`).
 
@@ -221,9 +226,9 @@ Each verification precedes the step it authorizes. The single exception is decla
    |---|---|---|
    | `coverage-check` | The unit count itself | Inequality in either direction (`S88`, `S170`) |
    | `removal-authorization-check` | Every removed line in every consolidation-class commit | A removed line falls in no classifiable unit whose entry carries `ruled → apply`, `historical decision → ADR`, `obsolete` or `severed`; or falls inside a unit whose entry is `still true`, `retained` or frozen (`S89`) |
-   | `baseline-ancestry-check` | Ancestry, and parenthood of the first consolidation-class commit | Either fails; an invalidation, not a warning (`S91`) |
+   | `baseline-ancestry-check --unit-gate` | Ancestry, and parenthood of the first consolidation-class commit, read through `CONSOLIDATION_COMMIT_MARK` | Either fails; an invalidation, not a warning (`S91`). Ancestry alone is nearly free in a linear history — what the parenthood clause catches is a functional commit sitting between the declared baseline and the consolidation work (`S164`) |
    | `scope-cross-check` | Declared scope against the non-narrated target set | Either direction (`S93`) |
-   | `bound-check` | Both halves against the materialized record | Either half breached (`S82`) |
+   | `bound-check` | The judgement half against the materialized record; the line half against the tree | Either half breached (`S82`) |
 
    How review-unit identity is surfaced to the gate, and what gate observes a standalone multi-commit pass, is `O9`.
 
@@ -352,3 +357,6 @@ Phase two of an exclusion has no trigger unless one is defined. Absent a defined
 ## To be confirmed
 
 - *About this skill as shipped, not the target-document section described above.* This skill ships a **best-effort, human-supervised** runner. It diverges from the controlled bar: the controlled tier requires a codebase knowledge graph (`S2`/`O1`), the review-capacity calibration exercise (`O8`), and an exclusion inventory (`O14`), none of which the runner provides or invents. Caps ship as conservative defaults, not calibrated values; `severance` is disabled until an inventory is configured. Flagged rather than resolved, per rule line ten; the runner's floor field states which tier a given pass ran in.
+- `CONSOLIDATION_COMMIT_MARK` is a slot the runner adds, not one the companion declares. The gate cannot delimit a review unit or falsify step nine's parenthood clause without a way to recognize a consolidation-class commit, so the runner reads a subject prefix. Whether commit-subject convention is the right carrier, or whether `O9` should close with a different mechanism, is for a person to rule.
+- The mechanical exemption is matched by removed-line **content**, not by provenance. Two distinct removals of identical text are indistinguishable to it, so a content-identical unauthorized removal accompanying a mechanical commit would be exempted. This is the shape `O17` leaves open; the runner reports every exemption it applies so the hole is visible in the gate output.
+- A `severance` occurrence is counted by target **basename**. It is a counting rule the design does not specify: the inventory's format is `O14`-open, so the runner reads the last tab-separated field of each inventory line as the target. Whether the inventory should carry an explicit reference text per occurrence is for a person to rule alongside `O14`.

@@ -17,6 +17,8 @@ Reasoning for every cited entry is in `~/.claude/documentation-lifecycle.md`. Th
 
 This skill ships a runner: `scripts/consolidate_comments.py` (stdlib-only Python 3). Invoke any gate as `python "<this skill's directory>/scripts/consolidate_comments.py" <gate>`. Each script the procedure names is a subcommand: `target-set`, `coverage-check`, `scope-cross-check`, `baseline-ancestry-check`, `bound-check`, `removal-authorization-check`, `floor-staleness-check`, `escalate`. Run `… self-test` to verify the install.
 
+Two subcommands carry the procedure's step distinction in a flag. `bound-check --judgement --project-lines` is the step-five projection; `bound-check --measured` is the step-seven measurement against the tree; `bound-check` with no flag is the review-unit gate, enforcing both halves. `baseline-ancestry-check --unit-gate` adds step nine's parenthood clause to the ancestry check.
+
 **Graceful degradation.** The runner is safe by construction — the regenerability test plus a human reading the removed lines is the real control (`S13`) — so it runs whether or not a project has the infrastructure the controlled tier assumes:
 
 | Infrastructure in `.consolidation.json` | Behaviour |
@@ -40,6 +42,7 @@ The controlled tier switches on automatically when configured; until then this i
 | `UNIT_RULE_ENUMERATION` | pragmatic per-language comment syntax — pure comment lines (grouped) and `/* */` blocks; trailing/inline comments and Python docstrings are **not** enumerated and are left untouched (O2 extension). Not the closed enumeration |
 | `REVIEW_UNIT_IDENTITY` | the isolation commit's baseline sha |
 | `MECHANICAL_REMOVAL_MARK` | commit subject prefix `mechanical:` |
+| `CONSOLIDATION_COMMIT_MARK` | commit subject prefix `consolidation:`. With `mechanical:`, this is the pair the gate reads to tell a consolidation-class commit from a functional one, and therefore to delimit the review unit (`O9`) |
 | `FLOOR_STALENESS_THRESHOLD` | 7 days (default) |
 
 **Conservative cap defaults** (uncalibrated, `O8`): `REMOVED_LINE_CAP` 200, `REMOVAL_JUDGEMENT_CAP` 30, `SPOT_CHECK_RATE` 0.25, `FUNCTIONAL_DIFF_THRESHOLD` 400, `ADDED_LINE_CEILING` 200.
@@ -65,7 +68,7 @@ basis: external rule, unverifiable from file
 
 An optional `narrowing_reason:` header line records why a declared scope is narrower than the target set; `scope-cross-check` requires it when it is, so a silent narrowing is not indistinguishable from evasion (`S93`).
 
-**Config** — `<project-root>/.consolidation.json` (optional, JSON): any cap key overrides its default; `knowledge_graph` (a command printing file paths) and `intake_path` are also read. Absent file = run on defaults = no graph, no calibrated caps.
+**Config** — `.consolidation.json` (optional, JSON), found by walking up from the working directory to the project root, so a gate invoked from a subdirectory does not silently run on defaults. Any cap key overrides its default; `knowledge_graph` (a command printing file paths) and `intake_path` are also read; an unrecognized key is reported rather than absorbed. Absent file = run on defaults = no graph, no calibrated caps.
 
 ---
 
@@ -200,9 +203,9 @@ Each verification precedes the step it authorizes. The single exception is decla
 
    These checks read a record in the author's working tree. They are cheap local gates whose purpose is to fail before the rewrite is paid for. They are **not** controls, because their input is visible to nothing but the author (`S82`).
 
-6. **Rewrite.** Only now. Isolate any reflow or renumbering into its own mechanical commit inside the review unit; it contributes zero to both caps and is exempt from removal authorization (`S90`). How the gate distinguishes mechanical from content removal in a given toolchain is `O17`; while `O17` is open, the exemption is a hole in the removal-authorization check and is named as one. A `comment` pass writes no front matter, so `S162` does not arise here.
+6. **Rewrite.** Only now. Isolate any reflow or renumbering into its own commit marked `MECHANICAL_REMOVAL_MARK` inside the review unit; it contributes zero to both caps and is exempt from removal authorization (`S90`). How the gate distinguishes mechanical from content removal in a given toolchain is `O17`; the runner reads the mark and exempts a removed line whose content a mechanical commit also removed, reporting the count of exemptions applied. While `O17` is open that content match is the hole in the removal-authorization check, and it is named as one rather than hidden. A `comment` pass writes no front matter, so `S162` does not arise here.
 
-7. **Measure the line half.** The measured removed-line count exists only after the rewrite. This is the single declared exception to check-before-step ordering, and the step-five projection reduces but does not eliminate it (`S149`). **Remedies on failure, enumerated in advance and exhaustive:** split the pass across review units and re-run, or discard and re-scope. Raising the cap, redistributing across more commits inside the same unit, and fanning out across agents are not remedies (`S81`).
+7. **Measure the line half.** Run `bound-check --measured`. The measured removed-line count exists only after the rewrite. This is the single declared exception to check-before-step ordering, and the step-five projection reduces but does not eliminate it (`S149`). Lines removed by a `mechanical:` commit are excluded from the measurement, per the exemption at step six. **Remedies on failure, enumerated in advance and exhaustive:** split the pass across review units and re-run, or discard and re-scope. Raising the cap, redistributing across more commits inside the same unit, and fanning out across agents are not remedies (`S81`).
 
 8. **Materialize the record inside the review unit** through the channel at slot `RECORD_CHANNEL` — either rendered into a commit message body in a fixed machine-readable format, placed in the last consolidation-class commit of the unit (`S169`), or committed as a retrieval-excluded file in its own commit, ordered after every content-removing commit (`S24`, `S139`). One of the two is mandatory: a pass materializing neither has no enforceable bound and no gate-verified coverage, whatever it claims (`S84`). Nothing crosses from the classification into the source file (`S51`).
 
@@ -212,9 +215,9 @@ Each verification precedes the step it authorizes. The single exception is decla
    |---|---|---|
    | `coverage-check` | The unit count itself, not a count the record asserts | Inequality in either direction (`S88`, `S170`) |
    | `removal-authorization-check` | Every removed line in every consolidation-class commit | A removed line falls in no classifiable unit whose entry carries `ruled → apply`, `historical decision → ADR`, `obsolete` or `regenerable → delete`; or falls inside a unit whose entry is `still true` or frozen (`S89`) |
-   | `baseline-ancestry-check` | Whether the declared baseline is an ancestor of the unit's consolidation-class commits and the parent of the first one | Either fails; it is an invalidation, not a warning (`S91`) |
+   | `baseline-ancestry-check --unit-gate` | Whether the declared baseline is an ancestor of the unit's consolidation-class commits and the parent of the first one, read through `CONSOLIDATION_COMMIT_MARK` | Either fails; it is an invalidation, not a warning (`S91`). Ancestry alone is nearly free in a linear history — what the parenthood clause catches is a functional commit sitting between the declared baseline and the consolidation work (`S164`) |
    | `scope-cross-check` | Declared scope against the non-narrated target set | Either direction, per step five (`S93`) |
-   | `bound-check` | Both halves against the materialized record | Either half breached (`S82`) |
+   | `bound-check` | The judgement half against the materialized record; the line half against the tree | Either half breached (`S82`) |
 
    The gate must be able to delimit the review unit. How review-unit identity is surfaced to it, and what gate observes a standalone multi-commit pass, is `O9`. Until `O9` closes for the toolchain in use, the bound cannot accumulate across a unit the gate cannot delimit, and the pass is not controlled.
 
@@ -306,3 +309,5 @@ Higher automation is not lower risk. This skill's characteristic failure — a d
 ## To be confirmed
 
 - This skill ships a **best-effort, human-supervised** runner. It diverges from the controlled bar defined above: the controlled tier requires a codebase knowledge graph (`S2`/`O1`) and the review-capacity calibration exercise (`O8`), neither of which the runner provides or invents. Caps ship as conservative defaults, not calibrated values; the graph is optional and detected, not assumed. Flagged rather than resolved, per rule line ten; the runner's floor field states which tier a given pass ran in.
+- `CONSOLIDATION_COMMIT_MARK` is a slot the runner adds, not one the companion declares. The gate cannot delimit a review unit or falsify step nine's parenthood clause without a way to recognize a consolidation-class commit, so the runner reads a subject prefix. Whether commit-subject convention is the right carrier, or whether `O9` should close with a different mechanism, is for a person to rule.
+- The mechanical exemption is matched by removed-line **content**, not by provenance. Two distinct removals of identical text — a genuine deletion and a reflow of the same line — are indistinguishable to it, so a content-identical unauthorized removal accompanying a mechanical commit would be exempted. This is the shape `O17` leaves open; the runner reports every exemption it applies so the hole is visible in the gate output.
