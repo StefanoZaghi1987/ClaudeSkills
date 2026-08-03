@@ -13,6 +13,58 @@ Reasoning for every cited entry is in `~/.claude/documentation-lifecycle.md`. Th
 
 ---
 
+## Implementation — the best-effort runner
+
+This skill ships a runner: `scripts/consolidate_specs.py` (stdlib-only Python 3). Invoke any gate as `python "<this skill's directory>/scripts/consolidate_specs.py" <gate>`. Each script the procedure names is a subcommand: `target-set`, `coverage-check`, `scope-cross-check`, `baseline-ancestry-check`, `bound-check`, `removal-authorization-check`, `floor-staleness-check`, `escalate`. `target-set` takes `--pass-kind document|severance`. Run `… self-test` to verify the install.
+
+**Graceful degradation.** The runner is safe by construction — conservative deletion plus a human reading the removed lines is the real control (`S13`) — so it runs whether or not a project has the infrastructure the controlled tier assumes:
+
+| Infrastructure in `.consolidation.json` | Behaviour |
+|---|---|
+| `knowledge_graph` set | `document` `target-set` uses it; floor = `graph` |
+| absent | `document` `target-set --scope FILES` enumerates doc paragraphs; floor = `self-report` |
+| caps set | `bound-check` enforces them |
+| absent | `bound-check` reports counts against conservative shipped defaults; advisory, never silent |
+| `exclusion_inventory` set | `severance` `target-set` runs it for inbound references |
+| absent | **`severance` is disabled** — the runner emits a disabled message and the pass does not proceed (`O14`) |
+
+The controlled tier switches on automatically when configured; until then this is a best-effort, human-supervised pass.
+
+**Slots, resolved by the runner** (overridable via `<project>/.consolidation.json`; none invented as calibrated truth):
+
+| Slot | Resolved to |
+|---|---|
+| `TARGET_SET_SCRIPT` | `consolidate_specs.py target-set` (graph if configured, else `--scope`) |
+| `RECORD_PATH` / `RECORD_FORMAT` / `RECORD_CHANNEL` | `.consolidation/<short-baseline-sha>.record`, line-oriented key-value, committed file |
+| `INTAKE_PATH` | `~/.claude/escalations.md` (already fixed by rule line eleven) |
+| `INTAKE_FORMAT` | one dated line: `` - YYYY-MM-DD `path:line` — divergence; disposition `` |
+| `INTAKE_REFERENCE_SCHEME` | `path:line` (in-file) / `path#anchor` (doc) |
+| `UNIT_RULE_ENUMERATION` | `document`: paragraphs (blank-line blocks); `severance`: one inbound reference occurrence — pragmatic, not closed (`O2`) |
+| `REVIEW_UNIT_IDENTITY` | the isolation commit's baseline sha |
+| `MECHANICAL_REMOVAL_MARK` | commit subject prefix `mechanical:` |
+| `FLOOR_STALENESS_THRESHOLD` | 7 days (default) |
+
+**Conservative cap defaults** (uncalibrated, `O8`): `REMOVED_LINE_CAP` 200, `REMOVAL_JUDGEMENT_CAP` 30, `SPOT_CHECK_RATE` 0.25, `FUNCTIONAL_DIFF_THRESHOLD` 400, `ADDED_LINE_CEILING` 200.
+
+**Record format** — authored by the agent as it classifies, parsed by the gates (`pass_kind` selects the disposition set the gates enforce):
+
+```
+baseline_sha: <sha>
+floor: self-report
+pass_kind: document
+unit_rule: document-paragraph
+scope: docs/auth.md
+@@unit
+file: docs/auth.md
+lines: 3
+disposition: obsolete
+basis: legacy HMAC path removed
+```
+
+**Config** — `<project-root>/.consolidation.json` (optional, JSON): any cap key overrides its default; `knowledge_graph`, `exclusion_inventory` (commands), and `intake_path` are also read. Absent file = run on defaults = no graph, no calibrated caps, severance disabled.
+
+---
+
 ## Trigger conditions
 
 | Pass kind | Admissible triggers |
@@ -55,7 +107,7 @@ The bound applies to every consolidation review unit, not only to `comment` pass
 
 Every consolidation-class commit counts against the totals, **including the severance commit** (`S76`). The record commit is consolidation-class for identity and contributes zero to both caps (`S77`). The mechanical commit contributes zero (`S90`, `S162`).
 
-**This skill is not shippable as controlled** on its numeric half. A placeholder cap is not a bound (`S132`); the review-capacity calibration exercise is a blocking prerequisite (`S155`), its instruments are the first shipment's hand-run and human severance passes (`S156`), and its own design is open under `O8`.
+**This skill ships as a best-effort, human-supervised runner, not as controlled** on its numeric half. A placeholder cap is not a bound (`S132`); the runner supplies conservative default caps (see *Implementation*) so the pass is runnable, while the calibrated values still require the review-capacity calibration exercise (`S155`, `S156`), whose design is open under `O8`.
 
 Also uncalibrated: `SPOT_CHECK_RATE` (`O8`), `FUNCTIONAL_DIFF_THRESHOLD` (`S25`, `O8`), `ADDED_LINE_CEILING` (`S69`, `O8`), `FLOOR_STALENESS_THRESHOLD` (`S6`, `O1`), `OBSERVATION_WINDOW_EVENTS` (`S154`, `O3`).
 
@@ -281,7 +333,7 @@ Required fields per entry (`S119`): what was observed; the churn-stable unit ref
 
 ## Severance — open status and what it costs
 
-Whether severing inbound references is safely agent-executable **at all** is `O15`. It is open. Settled around it: the review is permanently human and permanently non-authorial (`S106`); the first shipment assigns the severance itself to a human (`S14`); and it carries a classification record either way (`S107`).
+Whether severing inbound references is safely agent-executable **at all** is `O15`. It is open. Settled around it: the review is permanently human and permanently non-authorial (`S106`); the first shipment assigns the severance itself to a human (`S14`); and it carries a classification record either way (`S107`). In the runner, `severance` is disabled outright until an `exclusion_inventory` is configured (see *Implementation*).
 
 Severance is a destructive edit on documents that stay in play, and is governed as one: separate commit, counted against the bounds of its review unit, reviewed by reading the removed lines (`S106`, `S76`).
 
@@ -292,3 +344,9 @@ Exclusion is recoverable but not costlessly: restoring an excluded file is a con
 **Conditional claims, stated in the sentences that make them.** Exclusion is only as strong as its weakest channel, and the agent's routine search tool is a channel rather than a residual — where the toolchain cannot scope that tool, the exclusion cost claim is conditional and is stated as such (`S103`, `O14`, slot `SEARCH_SCOPING`). Where severance is unavailable, configuration-only exclusion is admissible **only** where the toolchain refuses to resolve a reference to an excluded path, in which case the residual is the reference text alone and the benefit is conditional; where the toolchain follows the reference and pulls the target back into context, configuration-only exclusion closes nothing, is not exclusion, and the target stays in play until severance is available (`S161`, `O14`).
 
 Phase two of an exclusion has no trigger unless one is defined. Absent a defined miss signal — slot `MISS_SIGNAL`, `O6` — the correct default is that exclusion is permanent and phase two never runs (`S105`). Where the boundary sits between an aggressively removed document and lost institutional knowledge is also `O6`.
+
+---
+
+## To be confirmed
+
+- *About this skill as shipped, not the target-document section described above.* This skill ships a **best-effort, human-supervised** runner. It diverges from the controlled bar: the controlled tier requires a codebase knowledge graph (`S2`/`O1`), the review-capacity calibration exercise (`O8`), and an exclusion inventory (`O14`), none of which the runner provides or invents. Caps ship as conservative defaults, not calibrated values; `severance` is disabled until an inventory is configured. Flagged rather than resolved, per rule line ten; the runner's floor field states which tier a given pass ran in.

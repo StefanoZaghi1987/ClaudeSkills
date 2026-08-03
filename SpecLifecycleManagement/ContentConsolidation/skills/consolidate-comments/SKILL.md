@@ -13,6 +13,60 @@ Reasoning for every cited entry is in `~/.claude/documentation-lifecycle.md`. Th
 
 ---
 
+## Implementation — the best-effort runner
+
+This skill ships a runner: `scripts/consolidate_comments.py` (stdlib-only Python 3). Invoke any gate as `python "<this skill's directory>/scripts/consolidate_comments.py" <gate>`. Each script the procedure names is a subcommand: `target-set`, `coverage-check`, `scope-cross-check`, `baseline-ancestry-check`, `bound-check`, `removal-authorization-check`, `floor-staleness-check`, `escalate`. Run `… self-test` to verify the install.
+
+**Graceful degradation.** The runner is safe by construction — the regenerability test plus a human reading the removed lines is the real control (`S13`) — so it runs whether or not a project has the infrastructure the controlled tier assumes:
+
+| Infrastructure in `.consolidation.json` | Behaviour |
+|---|---|
+| `knowledge_graph` set | `target-set` runs it for the file set; floor = `graph` |
+| absent | `target-set --scope FILES` enumerates comment units from the declared files; floor = `self-report` (the cross-check loses its non-agent-authored floor, per scope selection) |
+| caps set | `bound-check` enforces them |
+| absent | `bound-check` reports counts against conservative shipped defaults; breach is advisory, never silent |
+
+The controlled tier switches on automatically when configured; until then this is a best-effort, human-supervised pass.
+
+**Slots, resolved by the runner** (each overridable via `<project>/.consolidation.json`; none invented as calibrated truth):
+
+| Slot | Resolved to |
+|---|---|
+| `TARGET_SET_SCRIPT` | `consolidate_comments.py target-set` (graph if configured, else `--scope`) |
+| `RECORD_PATH` / `RECORD_FORMAT` / `RECORD_CHANNEL` | `.consolidation/<short-baseline-sha>.record`, line-oriented key-value, committed file |
+| `INTAKE_PATH` | `~/.claude/escalations.md` (already fixed by rule line eleven) |
+| `INTAKE_FORMAT` | one dated line: `` - YYYY-MM-DD `path:line` — divergence; disposition `` |
+| `INTAKE_REFERENCE_SCHEME` | `path:line` |
+| `UNIT_RULE_ENUMERATION` | pragmatic per-language comment syntax — pure comment lines (grouped) and `/* */` blocks; trailing/inline comments and Python docstrings are **not** enumerated and are left untouched (O2 extension). Not the closed enumeration |
+| `REVIEW_UNIT_IDENTITY` | the isolation commit's baseline sha |
+| `MECHANICAL_REMOVAL_MARK` | commit subject prefix `mechanical:` |
+| `FLOOR_STALENESS_THRESHOLD` | 7 days (default) |
+
+**Conservative cap defaults** (uncalibrated, `O8`): `REMOVED_LINE_CAP` 200, `REMOVAL_JUDGEMENT_CAP` 30, `SPOT_CHECK_RATE` 0.25, `FUNCTIONAL_DIFF_THRESHOLD` 400, `ADDED_LINE_CEILING` 200.
+
+**Record format** — authored by the agent as it classifies, parsed by the gates:
+
+```
+baseline_sha: <sha>
+floor: self-report
+unit_rule: comment
+scope: src/a.py,src/b.py
+@@unit
+file: src/a.py
+lines: 10-12
+disposition: regenerable → delete
+basis: restates the assignment at line 11
+@@unit
+file: src/a.py
+lines: 20
+disposition: escalates (frozen)
+basis: external rule, unverifiable from file
+```
+
+**Config** — `<project-root>/.consolidation.json` (optional, JSON): any cap key overrides its default; `knowledge_graph` (a command printing file paths) and `intake_path` are also read. Absent file = run on defaults = no graph, no calibrated caps.
+
+---
+
 ## Trigger conditions
 
 Admissible, and no others:
@@ -54,7 +108,7 @@ Invoke the shared target-set selection strategy. Do not re-derive it here and do
 
 Both parts are scoped to the review unit, not the commit. Splitting across commits does not raise them; splitting across review units is the remedy (`S75`).
 
-**This skill is not shippable as controlled.** A placeholder cap is not a bound (`S132`). Both values require the review-capacity calibration exercise, whose instruments are the first shipment's hand-run passes and human severance passes (`S155`, `S156`). That exercise is a blocking prerequisite of shipping this skill, not a parallel activity. Its own design is open under `O8`.
+**This skill ships as a best-effort, human-supervised runner, not as controlled.** A placeholder cap is not a bound (`S132`); the runner supplies conservative default caps (see *Implementation*) so the pass is runnable, while the calibrated values still require the review-capacity calibration exercise (`S155`, `S156`), whose design is open under `O8`. The controlled tier — graph floor plus calibrated caps — switches on automatically when that infrastructure is configured; until then the pass runs best-effort and says so in the record's floor field.
 
 Also uncalibrated and therefore placeholders: `SPOT_CHECK_RATE` (`O8`), `FUNCTIONAL_DIFF_THRESHOLD` (`S25`, `O8`), `ADDED_LINE_CEILING` (`S69`, `O8`), `FLOOR_STALENESS_THRESHOLD` (`S6`, `O1`), `OBSERVATION_WINDOW_EVENTS` (`S154`, `O3`).
 
@@ -244,3 +298,9 @@ Required fields per entry (`S119`): what was observed; the churn-stable unit ref
 High autonomy per pass; non-blocking, because external truth stops the unit rather than blocking the pass; **aggregate return to be measured** (`S128`). It is not a property to assert. Four compressions apply and point the same way: the conservative reconstructor collapses deletion authority toward the trivially tautological (`S45`); only comments carrying what the code cannot say about itself survive, defended conservatively because the failure modes are asymmetric (`S48`); whole-unit freezing preserves regenerable lines inside frozen units (`S52`); and comments are only ever read as part of a file the agent was going to read anyway, so consolidating them shortens files already in scope rather than removing anything from scope (`S153`).
 
 Higher automation is not lower risk. This skill's characteristic failure — a deleted invariant — is the single most expensive outcome in the design, and it is invisible in the resulting file by construction (`S129`).
+
+---
+
+## To be confirmed
+
+- This skill ships a **best-effort, human-supervised** runner. It diverges from the controlled bar defined above: the controlled tier requires a codebase knowledge graph (`S2`/`O1`) and the review-capacity calibration exercise (`O8`), neither of which the runner provides or invents. Caps ship as conservative defaults, not calibrated values; the graph is optional and detected, not assumed. Flagged rather than resolved, per rule line ten; the runner's floor field states which tier a given pass ran in.
