@@ -73,14 +73,16 @@ def load_config():
 
 
 def git(*args):
-    r = subprocess.run(["git", *args], capture_output=True, text=True)
+    r = subprocess.run(["git", *args], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
     if r.returncode != 0:
         raise RuntimeError(f"git {' '.join(args)} failed: {r.stderr.strip()}")
     return r.stdout
 
 
 def git_show(sha, path):
-    r = subprocess.run(["git", "show", f"{sha}:{path}"], capture_output=True, text=True)
+    r = subprocess.run(["git", "show", f"{sha}:{path}"], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
     return r.stdout if r.returncode == 0 else None
 
 
@@ -148,7 +150,8 @@ def resolve_scope(args, cfg):
         return args.scope
     kg = cfg.get("knowledge_graph")
     if kg:
-        out = subprocess.run(kg, shell=True, capture_output=True, text=True)
+        out = subprocess.run(kg, shell=True, capture_output=True, text=True,
+                             encoding="utf-8", errors="replace")
         return [l.strip() for l in out.stdout.splitlines() if l.strip()]
     _die("no scope: pass --scope FILES, or set knowledge_graph in .consolidation.json")
 
@@ -161,7 +164,8 @@ def cmd_target_set(args, cfg):
             print("Run a 'document' pass, or set exclusion_inventory in .consolidation.json "
                   "to the command that enumerates inbound references.")
             return ADVISORY
-        out = subprocess.run(inv, shell=True, capture_output=True, text=True)
+        out = subprocess.run(inv, shell=True, capture_output=True, text=True,
+                             encoding="utf-8", errors="replace")
         refs = [l.strip() for l in out.stdout.splitlines() if l.strip()]
         print("# floor: exclusion-inventory")
         print("# pass_kind: severance")
@@ -282,6 +286,8 @@ def _diff_removed_lines(baseline):
             cur += 1
         elif line.startswith("+") and not line.startswith("++"):
             pass
+        elif line.startswith("\\"):
+            pass  # "\ No newline at end of file" — metadata, not a baseline line
         elif line.startswith("diff --git"):
             file = None
         else:

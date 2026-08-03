@@ -66,15 +66,16 @@ def load_config():
 
 # ----------------------------------------------------------------------------- git
 def git(*args):
-    r = subprocess.run(["git", *args], capture_output=True, text=True)
+    r = subprocess.run(["git", *args], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
     if r.returncode != 0:
         raise RuntimeError(f"git {' '.join(args)} failed: {r.stderr.strip()}")
     return r.stdout
 
 
 def git_show(sha, path):
-    r = subprocess.run(["git", "show", f"{sha}:{path}"],
-                       capture_output=True, text=True)
+    r = subprocess.run(["git", "show", f"{sha}:{path}"], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
     return r.stdout if r.returncode == 0 else None
 
 
@@ -203,7 +204,8 @@ def resolve_scope(args, cfg):
         return args.scope
     kg = cfg.get("knowledge_graph")
     if kg:
-        out = subprocess.run(kg, shell=True, capture_output=True, text=True)
+        out = subprocess.run(kg, shell=True, capture_output=True, text=True,
+                             encoding="utf-8", errors="replace")
         return [l.strip() for l in out.stdout.splitlines() if l.strip()]
     _die("no scope: pass --scope FILES, or set knowledge_graph in .consolidation.json")
 
@@ -323,6 +325,8 @@ def _diff_removed_lines(baseline):
             cur += 1
         elif line.startswith("+") and not line.startswith("++"):
             pass
+        elif line.startswith("\\"):
+            pass  # "\ No newline at end of file" — metadata, not a baseline line
         elif line.startswith("diff --git"):
             file = None
         else:
@@ -344,15 +348,16 @@ def cmd_removal_authorization(args, cfg):
         if _norm(u.get("disposition", "")) in DELETION_AUTHORIZED and u.get("lines"):
             a, b = parse_lines(u["lines"])
             auth.setdefault(u.get("file"), []).append((a, b))
+    removed = _diff_removed_lines(baseline)
     bad = []
-    for (f, ln) in _diff_removed_lines(baseline):
+    for (f, ln) in removed:
         if not any(a <= ln <= b for (a, b) in auth.get(f, [])):
             bad.append((f, ln))
     if bad:
         sample = ", ".join(f"{f}:{ln}" for f, ln in bad[:5])
         print(f"FAIL: {len(bad)} removed line(s) not authorized by any unit (e.g. {sample})")
         return FAIL
-    print(f"ok: {len(_diff_removed_lines(baseline))} removed line(s) all fall in authorized units")
+    print(f"ok: {len(removed)} removed line(s) all fall in authorized units")
     return OK
 
 
@@ -425,6 +430,10 @@ def cmd_self_test(args, cfg):
         # target-set enumerates the three comment units
         units = extract_units(src, ".py")
         check("target-set finds 3 comment units", len(units) == 3)
+
+        # block-comment path (/* */) is exercised separately — it's a different extractor branch
+        bu = extract_units("int x; /* block note */\n", ".c")
+        check("block comment (/* */) detected on line 1", len(bu) == 1 and bu[0][0] == 1)
 
         # record as the agent would author it
         record = d / ".consolidation" / "r.record"
@@ -516,7 +525,6 @@ def build_parser():
 
     sp = sub.add_parser("target-set", help="enumerate comment units in scope")
     sp.add_argument("--scope", nargs="*", help="files to scope (repo-relative)")
-    sp.add_argument("--record", help="(unused) compatibility")
 
     sp = sub.add_parser("coverage-check", help="record entry count == recomputed unit count")
     sp.add_argument("--record", required=True)
