@@ -43,14 +43,60 @@ def _norm(s):
     return re.sub(r"\s+", " ", s.strip().lower())
 
 
-# dispositions that authorize a deletion. these count against the judgement cap and
-# their baseline line ranges count against the line cap.
+# Dispositions that authorize a removal: their baseline line ranges may legitimately
+# disappear from the tree, and they feed the projected line half.
 DELETION_AUTHORIZED = {
     _norm("regenerable → delete"),
     _norm("ruled → apply"),
     _norm("historical decision → ADR"),
     _norm("obsolete"),
 }
+
+# The countable set for the *judgement* half. Not the same set: `ruled → apply` authorizes a
+# removal but costs zero judgement, because its authority is a recorded human ruling rather
+# than an agent judgement (S73). Counting it would spend review budget on a decision the
+# agent did not make, and force a needless split.
+JUDGEMENT_COUNTABLE = {
+    _norm("obsolete"),
+    _norm("historical decision → ADR"),
+    _norm("regenerable → delete"),
+}
+
+# The seven content-pass dispositions, all available to a `comment` pass (S54). A record
+# carrying anything else is not a record the disposition table can adjudicate: an
+# unrecognized string reads as non-authorizing, so a typo on a delete fails loudly but a
+# typo on a retain is indistinguishable from a considered retention.
+ADMISSIBLE_DISPOSITIONS = {
+    _norm("ruled → apply"),
+    _norm("contradicts code → suspected defect"),
+    _norm("not verifiable"),
+    _norm("historical decision → ADR"),
+    _norm("obsolete"),
+    _norm("regenerable → delete"),
+    _norm("still true"),
+}
+
+# Dispositions whose *Evidence required* column is not "—" (S138). A bare disposition is
+# producible without reading anything; a citation is not. Presence is mechanizable, so it is
+# checked here; whether the citation is any good is the human spot-check.
+EVIDENCE_REQUIRED = {
+    _norm("ruled → apply"),
+    _norm("contradicts code → suspected defect"),
+    _norm("obsolete"),
+    _norm("regenerable → delete"),
+    _norm("still true"),
+}
+
+# The header fields a check would be undefined without (S137). `baseline_sha` carries both
+# the verification baseline and, per slot REVIEW_UNIT_IDENTITY, the review-unit identity.
+# `floor_observed` is the second half of field six — the floor's observation state — without
+# which floor-staleness-check cannot know whether its own floor is sound.
+REQUIRED_HEADER = ("baseline_sha", "floor", "floor_observed", "unit_rule", "scope")
+
+# Entry kinds this pass produces (S119). The kind is required, not decorative: the dedup
+# rule at S124 switches on it.
+ENTRY_KINDS = ("suspected-defect", "unverifiable-statement", "obsolete-citation")
+ENTRY_STATES = ("open", "ruled", "ruled-external")
 
 
 # --------------------------------------------------------------------------- config
@@ -267,6 +313,52 @@ def cmd_target_set(args, cfg):
     return OK
 
 
+def cmd_record_check(args, cfg):
+    """Is the thing the other gates count a record at all?
+
+    coverage-check counts entries; it does not ask whether an entry says anything admissible.
+    Without this gate an inadmissible disposition — a typo, or a `retained` borrowed from the
+    severance vocabulary — reads as merely non-authorizing and passes every other check, and a
+    delete carrying no basis is indistinguishable from one carrying a good one (S53, S138).
+    """
+    header, units = parse_record(args.record)
+    problems = []
+    for f in REQUIRED_HEADER:
+        if not header.get(f, "").strip():
+            problems.append(f"header: missing field {f!r} (S137)")
+    if not units:
+        problems.append("record carries no entries: a pass materializing no classification "
+                        "has no enforceable bound and no gate-verified coverage (S84)")
+    for i, u in enumerate(units, 1):
+        where = f"entry {i} ({u.get('file', '?')}:{u.get('lines', '?')})"
+        raw = u.get("disposition", "")
+        d = _norm(raw)
+        if not d:
+            problems.append(f"{where}: no disposition (S53: exactly one per classifiable unit)")
+        elif d not in ADMISSIBLE_DISPOSITIONS:
+            problems.append(f"{where}: disposition {raw!r} is not a member of the `comment` "
+                            f"pass's disposition set (S54)")
+        elif d in EVIDENCE_REQUIRED and not u.get("basis", "").strip():
+            problems.append(f"{where}: {raw!r} requires evidence, and the entry carries no "
+                            f"basis (S138)")
+        if not u.get("file", "").strip():
+            problems.append(f"{where}: no file in the unit reference")
+        if not u.get("lines", "").strip():
+            problems.append(f"{where}: no lines in the unit reference (S138)")
+        else:
+            try:
+                parse_lines(u["lines"])
+            except ValueError:
+                problems.append(f"{where}: unparseable lines {u['lines']!r}")
+    if problems:
+        for p in problems:
+            print(f"FAIL {p}")
+        return FAIL
+    print(f"ok: header complete; {len(units)} entr(ies), every disposition admissible and "
+          f"carrying the evidence it requires")
+    return OK
+
+
 def cmd_coverage_check(args, cfg):
     header, units = parse_record(args.record)
     baseline = header.get("baseline_sha") or args.baseline
@@ -359,10 +451,12 @@ def cmd_baseline_ancestry(args, cfg):
 
 def cmd_bound_check(args, cfg):
     header, units = parse_record(args.record)
-    judged = [u for u in units if _norm(u.get("disposition", "")) in DELETION_AUTHORIZED]
+    # Two sets, deliberately: the judgement half counts agent judgements (S73), the projected
+    # line half sums every unit whose removal is authorized, including the human-ruled ones.
+    judged = [u for u in units if _norm(u.get("disposition", "")) in JUDGEMENT_COUNTABLE]
     line_total = 0
-    for u in judged:
-        if u.get("lines"):
+    for u in units:
+        if _norm(u.get("disposition", "")) in DELETION_AUTHORIZED and u.get("lines"):
             a, b = parse_lines(u["lines"])
             line_total += b - a + 1
     jcap = cfg["REMOVAL_JUDGEMENT_CAP"]
@@ -387,7 +481,8 @@ def cmd_bound_check(args, cfg):
         if not baseline:
             _die("measured line half needs baseline_sha in the record or --baseline")
         measured, exempt = _measured_removed(baseline)
-        note = f" ({exempt} mechanical line(s) excluded)" if exempt else ""
+        note = (f" ({exempt} exempt line(s) excluded: mechanical reflow or whitespace)"
+                if exempt else "")
         print(f"removed lines measured against the tree: {measured} / cap {lcap}{note}")
         if measured > lcap:
             # Step 7's remedies are exhaustive: split across review units, or discard and
@@ -470,14 +565,28 @@ def _mechanical_removed_content(baseline):
     return out
 
 
+def _is_whitespace(content):
+    """A whitespace-only baseline line, which is exempt from both caps and from removal
+    authorization.
+
+    Not a convenience: such a line falls in no classifiable unit, because extract_units spans
+    only comment lines, and it cannot be content-matched to a mechanical commit either, because
+    that set skips empty content. Without this exemption removal-authorization-check is
+    unpassable for any pass that deletes a comment and the blank line orphaned beside it — no
+    commit arrangement clears it. A whitespace-only line carries neither comment nor code, so
+    its removal loses nothing and is no judgement (`S90`).
+    """
+    return content is not None and not content.strip()
+
+
 def _measured_removed(baseline):
     """The measured line half (step 7): removed lines since the baseline, less what a
-    mechanical commit removed."""
+    mechanical commit removed and less pure whitespace."""
     mech = _mechanical_removed_content(baseline)
     total, exempt = 0, 0
     for f, ln in _diff_removed_lines(baseline):
         c = _baseline_line(baseline, f, ln)
-        if c is not None and c.strip() and c.strip() in mech:
+        if _is_whitespace(c) or (c is not None and c.strip() and c.strip() in mech):
             exempt += 1
             continue
         total += 1
@@ -496,15 +605,21 @@ def cmd_removal_authorization(args, cfg):
             auth.setdefault(u.get("file"), []).append((a, b))
     removed = _diff_removed_lines(baseline)
     mech = _mechanical_removed_content(baseline)
-    bad, exempt = [], 0
+    bad, exempt, blank = [], 0, 0
     for (f, ln) in removed:
         if any(a <= ln <= b for (a, b) in auth.get(f, [])):
             continue
         c = _baseline_line(baseline, f, ln)
+        if _is_whitespace(c):
+            blank += 1
+            continue
         if c is not None and c.strip() and c.strip() in mech:
             exempt += 1  # mechanical reflow, exempt per S90; the O17 hole, named
             continue
         bad.append((f, ln))
+    if blank:
+        print(f"note: {blank} whitespace-only removed line(s) exempted — they fall in no "
+              f"classifiable unit and carry neither comment nor code")
     if exempt:
         print(f"note: {exempt} removed line(s) exempted as mechanical reflow (O17 open: "
               f"exemption matched by content, not by provenance)")
@@ -516,36 +631,154 @@ def cmd_removal_authorization(args, cfg):
     return OK
 
 
+def _commit_date(sha):
+    return date.fromisoformat(git("show", "-s", "--format=%cI", sha).strip()[:10])
+
+
+def _floor_observed_date(value):
+    """`floor_observed` is an ISO date or a sha whose commit date is read. A graph build state
+    is naturally one or the other, and demanding a single form would push the agent into
+    inventing a date for a state it can only name by sha."""
+    v = value.strip()
+    try:
+        return date.fromisoformat(v[:10])
+    except ValueError:
+        pass
+    try:
+        return _commit_date(v)
+    except (RuntimeError, ValueError):
+        return None
+
+
 def cmd_floor_staleness(args, cfg):
-    if not cfg.get("knowledge_graph"):
-        print("ADVISORY: no knowledge_graph configured; floor is self-report, staleness n/a")
+    """Age the floor against the verification baseline.
+
+    The observation state is read from the record header, which is where the procedure puts it.
+    That makes it agent-transcribed like every other header field — the pre-rewrite gates read
+    the author's own record and are therefore not controls (S82); at the step-nine gate the
+    record is materialized inside the review unit.
+    """
+    header, _ = parse_record(args.record)
+    floor = header.get("floor", "").strip()
+    if not floor:
+        print("FAIL: record header declares no floor (S137)")
+        return FAIL
+    if _norm(floor) == "self-report":
+        # A self-report floor is authored by the pass it floors, so it cannot go stale — and it
+        # cannot floor anything either. Name which, rather than reporting a pass.
+        print("ADVISORY: floor is self-report — authored by this pass, so the scope cross-check "
+              "has no non-agent-authored floor and staleness is undefined (S2)")
         return ADVISORY
-    # ponytail: a graph's build state is provider-specific; without an introspection
-    # contract we cannot check staleness generically. Advise rather than fake a pass.
-    print("ADVISORY: knowledge_graph configured but build-state introspection unimplemented (O1)")
-    return ADVISORY
+    observed_raw = header.get("floor_observed", "").strip()
+    if not observed_raw:
+        print(f"FAIL: floor is {floor!r} but the header carries no floor_observed, so the "
+              f"floor's age is unknown; a check depending on a floor refuses to pass rather "
+              f"than passing silently (S6)")
+        return FAIL
+    observed = _floor_observed_date(observed_raw)
+    if observed is None:
+        print(f"FAIL: floor_observed {observed_raw!r} is neither an ISO date nor a resolvable sha")
+        return FAIL
+    baseline = header.get("baseline_sha") or args.baseline
+    if not baseline:
+        _die("no baseline_sha in record and no --baseline given")
+    try:
+        base_date = _commit_date(baseline)
+    except (RuntimeError, ValueError) as e:
+        _die(f"cannot read the baseline commit date for {baseline}: {e}")
+    age = (base_date - observed).days
+    thr = cfg["FLOOR_STALENESS_THRESHOLD_DAYS"]
+    print(f"floor: {floor}; observed {observed.isoformat()}; baseline {base_date.isoformat()}; "
+          f"floor predates the baseline by {age} day(s) / threshold {thr}")
+    if age > thr:
+        print(f"FAIL: the floor predates the verification baseline by more than {thr} day(s). "
+              f"A stale floor invalidates the control it floors rather than weakening it — "
+              f"rebuild the floor and re-run (S6)")
+        return FAIL
+    print("ok: floor is fresh relative to the verification baseline")
+    return OK
+
+
+# An intake line: the dated one-liner rule eleven asks for, with the S119 fields carried in a
+# trailing bracket so read-before-append can parse what it is suppressing against.
+_INTAKE_RE = re.compile(
+    r"^- (?P<date>\S+) `(?P<ref>[^`]+)` — (?P<body>.*?)(?: \[(?P<fields>[a-z]+=[^\]]*)\])?$")
+_FIELD_ORDER = ("kind", "state", "observed", "context", "ruling", "occurrences", "latest")
+PASS_CONTEXT = "consolidate-comments"
+
+
+def _parse_intake_line(line):
+    m = _INTAKE_RE.match(line.rstrip())
+    if not m:
+        return None
+    fields = {}
+    for tok in (m.group("fields") or "").split():
+        k, _, v = tok.partition("=")
+        fields[k] = v
+    return {"date": m.group("date"), "ref": m.group("ref"), "body": m.group("body"),
+            "fields": fields, "raw": line.rstrip()}
+
+
+def _render_intake(e):
+    tail = " ".join(f"{k}={e['fields'][k]}" for k in _FIELD_ORDER if e["fields"].get(k))
+    return f"- {e['date']} `{e['ref']}` — {e['body']}" + (f" [{tail}]" if tail else "")
+
+
+def _head_sha():
+    try:
+        return git("rev-parse", "--short", "HEAD").strip()
+    except RuntimeError:
+        return None
 
 
 def cmd_escalate(args, cfg):
-    intake = args.intake or cfg.get("intake_path") or os.path.expanduser("~/.claude/escalations.md")
+    intake = Path(args.intake or cfg.get("intake_path")
+                  or os.path.expanduser("~/.claude/escalations.md"))
     if args.line:
         ref = f"{args.file}:{args.line}"
     elif args.anchor:
         ref = f"{args.file}#{args.anchor}"
     else:
         ref = args.file
-    line = f"- {date.today().isoformat()} `{ref}` — {args.divergence}"
-    if args.disposition:
-        line += f". {args.disposition}"
-    existing = Path(intake).read_text(encoding="utf-8") if os.path.exists(intake) else ""
-    key = f"`{ref}`"
-    for el in existing.splitlines():  # S121: read-before-append so passes stay idempotent
-        if key in el and args.divergence in el:
-            print(f"dedup: already escalated ({ref}); not re-appended")
+    observed = args.observed or _head_sha() or "unknown"
+    lines = intake.read_text(encoding="utf-8").splitlines() if intake.exists() else []
+
+    # Read before append (S121) — this is what gives a pass memory, since a frozen comment
+    # carries no in-file marker and a later pass re-encounters it.
+    #
+    # The dedup key is the churn-stable unit reference ALONE, never the pair of reference and
+    # kind: keying on the pair breaks against reclassification, because a later pass observing
+    # the same unit under the original kind finds no suppressing entry and appends a duplicate
+    # (S122).
+    for i, raw in enumerate(lines):
+        e = _parse_intake_line(raw)
+        if e is None or e["ref"] != ref:
+            continue
+        if e["fields"].get("kind") == "obsolete-citation" == args.kind:
+            # Exempt from suppression and counted instead: suppressing the second observation
+            # of the same stale statement destroys the frequency signal the observation window
+            # exists to measure. A reclassification preserves the accumulated count (S124).
+            n = int(e["fields"].get("occurrences") or "1") + 1
+            e["fields"].update(occurrences=str(n), latest=observed)
+            lines[i] = _render_intake(e)
+            intake.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            print(f"counted: obsolete-citation at {ref} now at {n} occurrence(s), "
+                  f"latest observation {observed}")
             return OK
-    Path(intake).parent.mkdir(parents=True, exist_ok=True)
+        print(f"suppressed: an entry already exists for {ref}; not re-appended (S122)")
+        print(f"  existing: {e['raw']}")
+        print("  Request reclassification of that entry rather than appending a duplicate.")
+        return OK
+
+    fields = {"kind": args.kind, "state": args.state, "observed": observed,
+              "context": args.context or PASS_CONTEXT}
+    if args.kind == "obsolete-citation":
+        fields.update(occurrences="1", latest=observed)
+    body = args.divergence + (f". {args.disposition}" if args.disposition else "")
+    intake.parent.mkdir(parents=True, exist_ok=True)
     with open(intake, "a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
+        fh.write(_render_intake({"date": date.today().isoformat(), "ref": ref,
+                                 "body": body, "fields": fields}) + "\n")
     print(f"escalated → {intake}")
     return OK
 
@@ -600,6 +833,7 @@ def cmd_self_test(args, cfg):
         record.write_text(
             "baseline_sha: " + baseline + "\n"
             "floor: self-report\n"
+            "floor_observed: " + baseline + "\n"
             "unit_rule: comment\n"
             "scope: m.py\n"
             "@@unit\n"
@@ -610,7 +844,7 @@ def cmd_self_test(args, cfg):
             "@@unit\n"
             "file: m.py\n"
             "lines: 6\n"
-            "disposition: escalates (frozen)\n"
+            "disposition: not verifiable\n"
             "basis: external PCI-DSS rule, unverifiable from file\n"
             "@@unit\n"
             "file: m.py\n"
@@ -622,6 +856,63 @@ def cmd_self_test(args, cfg):
         # coverage-check recomputes 3 units at baseline and matches the record
         cov = _run(["coverage-check", "--record", str(record)])
         check("coverage-check passes (3 == 3)", cov == OK)
+
+        # record-check asks whether the thing coverage-check counted is admissible at all
+        check("record-check passes on a complete record",
+              _run(["record-check", "--record", str(record)]) == OK)
+        bad_disp = d / "baddisp.record"
+        bad_disp.write_text(record.read_text(encoding="utf-8").replace(
+            "disposition: not verifiable", "disposition: escalates (frozen)"), encoding="utf-8")
+        check("record-check fails on a disposition outside the pass's set",
+              _run(["record-check", "--record", str(bad_disp)]) == FAIL)
+        no_basis = d / "nobasis.record"
+        no_basis.write_text(record.read_text(encoding="utf-8").replace(
+            "basis: restates the return\n", ""), encoding="utf-8")
+        check("record-check fails on a delete carrying no basis",
+              _run(["record-check", "--record", str(no_basis)]) == FAIL)
+        no_head = d / "nohead.record"
+        no_head.write_text(record.read_text(encoding="utf-8").replace(
+            "unit_rule: comment\n", ""), encoding="utf-8")
+        check("record-check fails on a header missing a field a check needs",
+              _run(["record-check", "--record", str(no_head)]) == FAIL)
+
+        # the judgement half counts agent judgements only: `ruled → apply` authorizes a removal
+        # on a recorded human ruling and contributes zero (S73)
+        ruled = d / "ruled.record"
+        ruled.write_text(record.read_text(encoding="utf-8").replace(
+            "disposition: obsolete", "disposition: ruled → apply").replace(
+            "basis: legacy auth path removed", "basis: intake entry m.py:9, ruling sha abc1234"),
+            encoding="utf-8")
+        (d / ".consolidation.json").write_text('{"REMOVAL_JUDGEMENT_CAP": 1}', encoding="utf-8")
+        check("judgement half counts the one regenerable delete, not `ruled → apply`",
+              _run(["bound-check", "--record", str(ruled), "--judgement"]) == OK)
+        check("judgement half still breaches when two agent judgements are made",
+              _run(["bound-check", "--record", str(record), "--judgement"]) == FAIL)
+        (d / ".consolidation.json").unlink()
+
+        # floor-staleness-check reads the floor's observation state out of the header
+        check("floor-staleness is undefined, and says so, on a self-report floor",
+              _run(["floor-staleness-check", "--record", str(record)]) == ADVISORY)
+        graph_nofloor = d / "graph_nofloor.record"
+        graph_nofloor.write_text(record.read_text(encoding="utf-8")
+                                 .replace("floor: self-report\n", "floor: graph\n")
+                                 .replace("floor_observed: " + baseline + "\n", ""),
+                                 encoding="utf-8")
+        check("floor-staleness refuses to pass a graph floor with no observation state",
+              _run(["floor-staleness-check", "--record", str(graph_nofloor)]) == FAIL)
+        fresh = d / "fresh.record"
+        fresh.write_text(record.read_text(encoding="utf-8").replace(
+            "floor: self-report\n", "floor: graph\n"), encoding="utf-8")
+        check("floor-staleness passes a graph floor built at the baseline",
+              _run(["floor-staleness-check", "--record", str(fresh)]) == OK)
+        stale = d / "stale.record"
+        old = date.fromordinal(date.today().toordinal() - 30).isoformat()
+        stale.write_text(record.read_text(encoding="utf-8")
+                         .replace("floor: self-report\n", "floor: graph\n")
+                         .replace("floor_observed: " + baseline, "floor_observed: " + old),
+                         encoding="utf-8")
+        check("floor-staleness fails a graph floor older than the threshold",
+              _run(["floor-staleness-check", "--record", str(stale)]) == FAIL)
 
         # coverage-check fails if a whole unit block is dropped from the record
         record.write_text(record.read_text(encoding="utf-8").replace(
@@ -672,14 +963,39 @@ def cmd_self_test(args, cfg):
         check("scope-cross-check passes on narrower scope with a recorded reason",
               _run(["scope-cross-check", "--record", str(narrow_ok), "--target-set", str(ts)]) == OK)
 
-        # escalate dedup against a temp intake
+        # escalate: read-before-append against a temp intake
         intake = d / "intake.md"
-        e1 = _run(["escalate", "--file", "m.py", "--line", "6",
-                   "--divergence", "PCI rule unverifiable", "--intake", str(intake)])
-        e2 = _run(["escalate", "--file", "m.py", "--line", "6",
-                   "--divergence", "PCI rule unverifiable", "--intake", str(intake)])
-        check("escalate appends once", e1 == OK and intake.read_text().count("PCI") == 1)
-        check("escalate dedups the second time", e2 == OK)
+        e1 = _run(["escalate", "--file", "m.py", "--line", "6", "--kind",
+                   "unverifiable-statement", "--divergence", "PCI rule unverifiable",
+                   "--intake", str(intake)])
+        check("escalate appends once with the S119 fields",
+              e1 == OK and intake.read_text(encoding="utf-8").count("PCI") == 1
+              and "kind=unverifiable-statement" in intake.read_text(encoding="utf-8")
+              and "state=open" in intake.read_text(encoding="utf-8"))
+        # The dedup key is the unit reference ALONE. Keying on reference + divergence text — or
+        # on reference + kind — lets a reworded or reclassified observation append a duplicate,
+        # which is precisely the pathology S122 names.
+        e2 = _run(["escalate", "--file", "m.py", "--line", "6", "--kind",
+                   "unverifiable-statement", "--divergence", "PCI rule unverifiable",
+                   "--intake", str(intake)])
+        check("escalate suppresses an identical re-observation", e2 == OK)
+        _run(["escalate", "--file", "m.py", "--line", "6", "--kind", "suspected-defect",
+              "--divergence", "reworded observation, different kind", "--intake", str(intake)])
+        check("escalate suppresses on the reference alone, not the reference-and-kind pair",
+              len(intake.read_text(encoding="utf-8").strip().splitlines()) == 1)
+
+        # the obsolete-citation kind is exempt from suppression and counted instead (S124)
+        cite = d / "cite.md"
+        _run(["escalate", "--file", "m.py", "--line", "9", "--kind", "obsolete-citation",
+              "--divergence", "cites a removed helper", "--intake", str(cite)])
+        _run(["escalate", "--file", "m.py", "--line", "9", "--kind", "obsolete-citation",
+              "--divergence", "cites a removed helper", "--intake", str(cite)])
+        _run(["escalate", "--file", "m.py", "--line", "9", "--kind", "obsolete-citation",
+              "--divergence", "cites a removed helper", "--intake", str(cite)])
+        cite_text = cite.read_text(encoding="utf-8")
+        check("obsolete-citation is counted, not suppressed",
+              len(cite_text.strip().splitlines()) == 1 and "occurrences=3" in cite_text)
+        check("obsolete-citation carries a latest-observation sha", "latest=" in cite_text)
 
         # coverage-check must not pass a scope naming a file nobody could have examined,
         # nor a record carrying entries for files outside the declared scope
@@ -689,7 +1005,7 @@ def cmd_self_test(args, cfg):
                          "@@unit\nfile: m.py\nlines: 4\n"
                          "disposition: regenerable → delete\nbasis: restates the return\n"
                          "@@unit\nfile: m.py\nlines: 6\n"
-                         "disposition: escalates (frozen)\nbasis: external rule\n"
+                         "disposition: not verifiable\nbasis: external rule\n"
                          "@@unit\nfile: m.py\nlines: 9\n"
                          "disposition: obsolete\nbasis: legacy path\n", encoding="utf-8")
         check("coverage-check fails on a scope file absent at baseline",
@@ -742,6 +1058,26 @@ def cmd_self_test(args, cfg):
                             "disposition: still true\nbasis: retained\n", encoding="utf-8")
         check("mechanical reflow is exempt beside a content commit",
               _run(["removal-authorization-check", "--record", str(mech_rec)]) == OK)
+
+        # The ordinary rewrite takes the blank line orphaned beside a deleted comment with it.
+        # A blank line falls in no comment unit and cannot be content-matched to a mechanical
+        # commit, so without an explicit exemption no commit arrangement clears this gate.
+        Path("b.py").write_text("x = 1\n\n# a note\n\ny = 2\n", encoding="utf-8")
+        subprocess.run(["git", "add", "b.py"], check=True)
+        subprocess.run(["git", "commit", "-qm", "add b"], check=True)
+        blank_base = git("rev-parse", "HEAD").strip()
+        Path("b.py").write_text("x = 1\n\ny = 2\n", encoding="utf-8")
+        subprocess.run(["git", "add", "b.py"], check=True)
+        subprocess.run(["git", "commit", "-qm", "consolidation: b.py"], check=True)
+        blank_rec = d / "blank.record"
+        blank_rec.write_text("baseline_sha: " + blank_base + "\nfloor: self-report\n"
+                             "floor_observed: " + blank_base + "\nunit_rule: comment\n"
+                             "scope: b.py\n"
+                             "@@unit\nfile: b.py\nlines: 3\n"
+                             "disposition: regenerable → delete\n"
+                             "basis: restates the assignment above it\n", encoding="utf-8")
+        check("removal-authorization passes when a comment takes its orphaned blank line",
+              _run(["removal-authorization-check", "--record", str(blank_rec)]) == OK)
 
         # baseline-ancestry --unit-gate wants the first commit to be consolidation-class,
         # not merely descended from the baseline (step 9 / S164)
@@ -799,6 +1135,10 @@ def build_parser():
     sp = sub.add_parser("target-set", help="enumerate comment units in scope")
     sp.add_argument("--scope", nargs="*", help="files to scope (repo-relative)")
 
+    sp = sub.add_parser("record-check",
+                        help="header complete; every disposition admissible with its evidence")
+    sp.add_argument("--record", required=True)
+
     sp = sub.add_parser("coverage-check", help="record entry count == recomputed unit count")
     sp.add_argument("--record", required=True)
     sp.add_argument("--baseline")
@@ -827,13 +1167,20 @@ def build_parser():
     sp.add_argument("--record", required=True)
     sp.add_argument("--baseline")
 
-    sp = sub.add_parser("floor-staleness-check", help="graph floor age vs baseline (advisory)")
+    sp = sub.add_parser("floor-staleness-check", help="floor's observation state vs baseline")
+    sp.add_argument("--record", required=True)
+    sp.add_argument("--baseline")
 
-    sp = sub.add_parser("escalate", help="append a deduped flag to the intake")
+    sp = sub.add_parser("escalate", help="append a deduped, structured entry to the intake")
     sp.add_argument("--file", required=True)
     sp.add_argument("--line")
     sp.add_argument("--anchor")
     sp.add_argument("--divergence", required=True)
+    sp.add_argument("--kind", required=True, choices=list(ENTRY_KINDS),
+                    help="the entry kind; the dedup rule switches on it (S119, S124)")
+    sp.add_argument("--state", default="open", choices=list(ENTRY_STATES))
+    sp.add_argument("--observed", help="sha in effect at observation (default: short HEAD)")
+    sp.add_argument("--context", help=f"originating context (default: {PASS_CONTEXT})")
     sp.add_argument("--disposition")
     sp.add_argument("--intake")
 
@@ -856,6 +1203,7 @@ def main(argv=None):
     _PARSER = build_parser()
     _DISPATCH = {
         "target-set": cmd_target_set,
+        "record-check": cmd_record_check,
         "coverage-check": cmd_coverage_check,
         "scope-cross-check": cmd_scope_cross_check,
         "baseline-ancestry-check": cmd_baseline_ancestry,

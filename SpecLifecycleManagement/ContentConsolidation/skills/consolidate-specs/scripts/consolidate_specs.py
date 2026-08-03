@@ -46,7 +46,9 @@ def _norm(s):
     return re.sub(r"\s+", " ", s.strip().lower())
 
 
-# regenerable → delete is unavailable to the document pass; severance uses `severed`.
+# Dispositions that authorize a removal: their baseline line ranges may legitimately disappear
+# from the tree. `regenerable → delete` is unavailable to a document pass — the regenerability
+# test is scoped to comments and is never extended to prose (S46).
 DELETION_AUTHORIZED_DOCUMENT = {
     _norm("ruled → apply"),
     _norm("historical decision → ADR"),
@@ -56,9 +58,71 @@ DELETION_AUTHORIZED_SEVERANCE = {
     _norm("severed"),
 }
 
+# The countable set for the *judgement* half. Not the same set: `ruled → apply` authorizes a
+# removal but costs zero judgement, because its authority is a recorded human ruling rather
+# than an agent judgement (S73).
+JUDGEMENT_COUNTABLE_DOCUMENT = {
+    _norm("obsolete"),
+    _norm("historical decision → ADR"),
+}
+JUDGEMENT_COUNTABLE_SEVERANCE = {
+    _norm("severed"),
+}
+
+# A document pass gets six of the seven content-pass dispositions; a severance pass gets a
+# disjoint two-member set. Both members of the severance set are needed or the coverage check
+# is unfalsifiable (S58).
+ADMISSIBLE_DOCUMENT = {
+    _norm("ruled → apply"),
+    _norm("contradicts code → suspected defect"),
+    _norm("not verifiable"),
+    _norm("historical decision → ADR"),
+    _norm("obsolete"),
+    _norm("still true"),
+}
+ADMISSIBLE_SEVERANCE = {
+    _norm("severed"),
+    _norm("retained"),
+}
+
+# Dispositions whose *Evidence required* column is not "—" (S138). Presence is mechanizable;
+# whether the citation is any good is the human spot-check.
+EVIDENCE_REQUIRED_DOCUMENT = {
+    _norm("ruled → apply"),
+    _norm("contradicts code → suspected defect"),
+    _norm("obsolete"),
+    _norm("still true"),
+}
+EVIDENCE_REQUIRED_SEVERANCE = {
+    _norm("severed"),
+    _norm("retained"),
+}
+
+# The header fields a check would be undefined without (S137). `pass_kind` first: without it
+# the applicable floor, disposition set and cap values are undetermined. `floor_observed` is
+# the second half of field six — the floor's observation state — without which the scope
+# cross-check cannot know whether its own floor is sound.
+REQUIRED_HEADER = ("baseline_sha", "pass_kind", "floor", "floor_observed", "unit_rule", "scope")
+
+# Entry kinds this skill produces (S119). The kind is required, not decorative: the dedup rule
+# at S124 switches on it.
+ENTRY_KINDS = ("suspected-defect", "unverifiable-statement", "load-bearing-reference",
+               "obsolete-citation")
+ENTRY_STATES = ("open", "ruled", "ruled-external")
+
+
+def is_severance(pass_kind):
+    return "severance" in _norm(pass_kind)
+
 
 def auth_set_for(pass_kind):
-    return DELETION_AUTHORIZED_SEVERANCE if "severance" in _norm(pass_kind) else DELETION_AUTHORIZED_DOCUMENT
+    return (DELETION_AUTHORIZED_SEVERANCE if is_severance(pass_kind)
+            else DELETION_AUTHORIZED_DOCUMENT)
+
+
+def judgement_set_for(pass_kind):
+    return (JUDGEMENT_COUNTABLE_SEVERANCE if is_severance(pass_kind)
+            else JUDGEMENT_COUNTABLE_DOCUMENT)
 
 
 # --------------------------------------------------------------------------- config
@@ -246,6 +310,67 @@ def cmd_target_set(args, cfg):
     return OK
 
 
+def cmd_record_check(args, cfg):
+    """Is the thing the other gates count a record at all?
+
+    coverage-check counts entries; it does not ask whether an entry says anything admissible.
+    Without this gate an inadmissible disposition — a typo, a `regenerable → delete` smuggled
+    into a document pass, a `retained` borrowed from the severance vocabulary — reads as merely
+    non-authorizing and passes every other check, and a removal carrying no basis is
+    indistinguishable from one carrying a good one (S53, S138). It is also where `S46` becomes
+    mechanical rather than advisory.
+    """
+    header, units = parse_record(args.record)
+    problems = []
+    for f in REQUIRED_HEADER:
+        if not header.get(f, "").strip():
+            problems.append(f"header: missing field {f!r} (S137)")
+    kind = header.get("pass_kind", "document")
+    sev = is_severance(kind)
+    admissible = ADMISSIBLE_SEVERANCE if sev else ADMISSIBLE_DOCUMENT
+    evidence = EVIDENCE_REQUIRED_SEVERANCE if sev else EVIDENCE_REQUIRED_DOCUMENT
+    label = "severance" if sev else "document"
+    if not units:
+        problems.append("record carries no entries: a pass materializing no classification has "
+                        "no enforceable bound and no gate-verified coverage (S84)")
+    for i, u in enumerate(units, 1):
+        where = f"entry {i} ({u.get('file', '?')}:{u.get('lines', '?')})"
+        raw = u.get("disposition", "")
+        dsp = _norm(raw)
+        if not dsp:
+            problems.append(f"{where}: no disposition (S53: exactly one per classifiable unit)")
+        elif dsp not in admissible:
+            extra = ("; the regenerability test is scoped to comments and is never extended to "
+                     "prose (S46)" if dsp == _norm("regenerable → delete") else "")
+            problems.append(f"{where}: disposition {raw!r} is not a member of the `{label}` "
+                            f"pass's disposition set{extra}")
+        elif dsp in evidence and not u.get("basis", "").strip():
+            problems.append(f"{where}: {raw!r} requires evidence, and the entry carries no "
+                            f"basis (S138)")
+        if not u.get("file", "").strip():
+            problems.append(f"{where}: no file in the unit reference")
+        if not u.get("lines", "").strip():
+            problems.append(f"{where}: no lines in the unit reference (S138)")
+        else:
+            try:
+                parse_lines(u["lines"])
+            except ValueError:
+                problems.append(f"{where}: unparseable lines {u['lines']!r}")
+    if sev and not any(_norm(u.get("disposition", "")) == _norm("retained") for u in units):
+        # Not a failure: a unit may legitimately sever every occurrence. But if every entry is
+        # a `severed`, entry count equals occurrence count by construction and the coverage
+        # check verifies nothing, so the reviewer is told the check went slack (S58).
+        print("note: every entry is `severed`, so coverage equals occurrence count by "
+              "construction and verifies nothing this unit (S58)")
+    if problems:
+        for p in problems:
+            print(f"FAIL {p}")
+        return FAIL
+    print(f"ok: header complete; pass_kind {label}; {len(units)} entr(ies), every disposition "
+          f"admissible and carrying the evidence it requires")
+    return OK
+
+
 def cmd_coverage_check(args, cfg):
     header, units = parse_record(args.record)
     baseline = header.get("baseline_sha") or args.baseline
@@ -261,9 +386,9 @@ def cmd_coverage_check(args, cfg):
     # A severance pass counts reference occurrences, not paragraphs: its unit rule is fixed
     # to "one inbound reference occurrence" and its floor is the exclusion inventory, not the
     # graph (S85, S107). Counting paragraphs here made the check structurally unpassable.
-    is_severance = "severance" in _norm(header.get("pass_kind", "document"))
-    targets = severance_targets(args, cfg) if is_severance else None
-    if is_severance:
+    sev = is_severance(header.get("pass_kind", "document"))
+    targets = severance_targets(args, cfg) if sev else None
+    if sev:
         print(f"pass_kind: severance; counting references to {targets}")
     ok = True
     for f in scope:
@@ -273,10 +398,10 @@ def cmd_coverage_check(args, cfg):
             print(f"FAIL {f}: declared in scope but absent at baseline {baseline[:8]}")
             ok = False
             continue
-        r = (count_references(text, targets) if is_severance
+        r = (count_references(text, targets) if sev
              else len(extract_units(text, Path(f).suffix)))
         c = rec_count.get(f, 0)
-        noun = "occurrences" if is_severance else "units"
+        noun = "occurrences" if sev else "units"
         if r != c:
             print(f"FAIL {f}: recomputed {r} {noun}, record has {c} entries")
             ok = False
@@ -347,11 +472,14 @@ def cmd_baseline_ancestry(args, cfg):
 
 def cmd_bound_check(args, cfg):
     header, units = parse_record(args.record)
-    aset = auth_set_for(header.get("pass_kind", "document"))
-    judged = [u for u in units if _norm(u.get("disposition", "")) in aset]
+    kind = header.get("pass_kind", "document")
+    # Two sets, deliberately: the judgement half counts agent judgements (S73), the projected
+    # line half sums every unit whose removal is authorized, including the human-ruled ones.
+    judged = [u for u in units if _norm(u.get("disposition", "")) in judgement_set_for(kind)]
+    aset = auth_set_for(kind)
     line_total = 0
-    for u in judged:
-        if u.get("lines"):
+    for u in units:
+        if _norm(u.get("disposition", "")) in aset and u.get("lines"):
             a, b = parse_lines(u["lines"])
             line_total += b - a + 1
     jcap = cfg["REMOVAL_JUDGEMENT_CAP"]
@@ -377,7 +505,8 @@ def cmd_bound_check(args, cfg):
         if not baseline:
             _die("measured line half needs baseline_sha in the record or --baseline")
         measured, exempt = _measured_removed(baseline)
-        note = f" ({exempt} mechanical line(s) excluded)" if exempt else ""
+        note = (f" ({exempt} exempt line(s) excluded: mechanical reflow or whitespace)"
+                if exempt else "")
         print(f"removed lines measured against the tree: {measured} / cap {lcap}{note}")
         if measured > lcap:
             # Step 7's remedies are exhaustive: split across review units, or discard and
@@ -461,14 +590,28 @@ def _mechanical_removed_content(baseline):
     return out
 
 
+def _is_whitespace(content):
+    """A whitespace-only baseline line, which is exempt from both caps and from removal
+    authorization.
+
+    Not a convenience: a blank line is what *separates* paragraphs, so it falls in no
+    classifiable unit under the paragraph unit rule, and it cannot be content-matched to a
+    mechanical commit either, because that set skips empty content. Without this exemption
+    removal-authorization-check is unpassable for the ordinary case — deleting an obsolete
+    paragraph and the blank line orphaned beside it. A whitespace-only line carries no
+    statement, so its removal loses nothing and is no judgement (`S90`).
+    """
+    return content is not None and not content.strip()
+
+
 def _measured_removed(baseline):
     """The measured line half (step 7): removed lines since the baseline, less what a
-    mechanical commit removed."""
+    mechanical commit removed and less pure whitespace."""
     mech = _mechanical_removed_content(baseline)
     total, exempt = 0, 0
     for f, ln in _diff_removed_lines(baseline):
         c = _baseline_line(baseline, f, ln)
-        if c is not None and c.strip() and c.strip() in mech:
+        if _is_whitespace(c) or (c is not None and c.strip() and c.strip() in mech):
             exempt += 1
             continue
         total += 1
@@ -488,15 +631,21 @@ def cmd_removal_authorization(args, cfg):
             auth.setdefault(u.get("file"), []).append((a, b))
     removed = _diff_removed_lines(baseline)
     mech = _mechanical_removed_content(baseline)
-    bad, exempt = [], 0
+    bad, exempt, blank = [], 0, 0
     for (f, ln) in removed:
         if any(a <= ln <= b for (a, b) in auth.get(f, [])):
             continue
         c = _baseline_line(baseline, f, ln)
+        if _is_whitespace(c):
+            blank += 1
+            continue
         if c is not None and c.strip() and c.strip() in mech:
             exempt += 1  # mechanical reflow, exempt per S90/S162; the O17 hole, named
             continue
         bad.append((f, ln))
+    if blank:
+        print(f"note: {blank} whitespace-only removed line(s) exempted — they separate units "
+              f"rather than belonging to one, and carry no statement")
     if exempt:
         print(f"note: {exempt} removed line(s) exempted as mechanical reflow (O17 open: "
               f"exemption matched by content, not by provenance)")
@@ -508,34 +657,152 @@ def cmd_removal_authorization(args, cfg):
     return OK
 
 
+def _commit_date(sha):
+    return date.fromisoformat(git("show", "-s", "--format=%cI", sha).strip()[:10])
+
+
+def _floor_observed_date(value):
+    """`floor_observed` is an ISO date or a sha whose commit date is read. A graph build state or
+    an exclusion-inventory capture is naturally one or the other, and demanding a single form
+    would push the agent into inventing a date for a state it can only name by sha."""
+    v = value.strip()
+    try:
+        return date.fromisoformat(v[:10])
+    except ValueError:
+        pass
+    try:
+        return _commit_date(v)
+    except (RuntimeError, ValueError):
+        return None
+
+
 def cmd_floor_staleness(args, cfg):
-    if not cfg.get("knowledge_graph"):
-        print("ADVISORY: no knowledge_graph configured; floor is self-report, staleness n/a")
+    """Age the floor against the verification baseline.
+
+    For a document pass the floor is the graph's build state; for a severance pass it is the
+    exclusion inventory's capture state (S107). Either way the observation state is read from
+    the record header, which is where the procedure puts it — so it is agent-transcribed like
+    every other header field. The pre-rewrite gates read the author's own record and are
+    therefore not controls (S82); at the step-nine gate the record is materialized.
+    """
+    header, _ = parse_record(args.record)
+    floor = header.get("floor", "").strip()
+    if not floor:
+        print("FAIL: record header declares no floor (S137)")
+        return FAIL
+    if _norm(floor) == "self-report":
+        # A self-report floor is authored by the pass it floors, so it cannot go stale — and it
+        # cannot floor anything either. Name which, rather than reporting a pass.
+        print("ADVISORY: floor is self-report — authored by this pass, so the scope cross-check "
+              "has no non-agent-authored floor and staleness is undefined (S2)")
         return ADVISORY
-    print("ADVISORY: knowledge_graph configured but build-state introspection unimplemented (O1)")
-    return ADVISORY
+    observed_raw = header.get("floor_observed", "").strip()
+    if not observed_raw:
+        print(f"FAIL: floor is {floor!r} but the header carries no floor_observed, so the "
+              f"floor's age is unknown; a check depending on a floor refuses to pass rather "
+              f"than passing silently (S6)")
+        return FAIL
+    observed = _floor_observed_date(observed_raw)
+    if observed is None:
+        print(f"FAIL: floor_observed {observed_raw!r} is neither an ISO date nor a resolvable sha")
+        return FAIL
+    baseline = header.get("baseline_sha") or args.baseline
+    if not baseline:
+        _die("no baseline_sha in record and no --baseline given")
+    try:
+        base_date = _commit_date(baseline)
+    except (RuntimeError, ValueError) as e:
+        _die(f"cannot read the baseline commit date for {baseline}: {e}")
+    age = (base_date - observed).days
+    thr = cfg["FLOOR_STALENESS_THRESHOLD_DAYS"]
+    print(f"floor: {floor}; observed {observed.isoformat()}; baseline {base_date.isoformat()}; "
+          f"floor predates the baseline by {age} day(s) / threshold {thr}")
+    if age > thr:
+        print(f"FAIL: the floor predates the verification baseline by more than {thr} day(s). "
+              f"A stale floor invalidates the control it floors rather than weakening it — "
+              f"rebuild the floor and re-run (S6)")
+        return FAIL
+    print("ok: floor is fresh relative to the verification baseline")
+    return OK
+
+
+# An intake line: the dated one-liner rule eleven asks for, with the S119 fields carried in a
+# trailing bracket so read-before-append can parse what it is suppressing against.
+_INTAKE_RE = re.compile(
+    r"^- (?P<date>\S+) `(?P<ref>[^`]+)` — (?P<body>.*?)(?: \[(?P<fields>[a-z]+=[^\]]*)\])?$")
+_FIELD_ORDER = ("kind", "state", "observed", "context", "ruling", "occurrences", "latest")
+PASS_CONTEXT = "consolidate-specs"
+
+
+def _parse_intake_line(line):
+    m = _INTAKE_RE.match(line.rstrip())
+    if not m:
+        return None
+    fields = {}
+    for tok in (m.group("fields") or "").split():
+        k, _, v = tok.partition("=")
+        fields[k] = v
+    return {"date": m.group("date"), "ref": m.group("ref"), "body": m.group("body"),
+            "fields": fields, "raw": line.rstrip()}
+
+
+def _render_intake(e):
+    tail = " ".join(f"{k}={e['fields'][k]}" for k in _FIELD_ORDER if e["fields"].get(k))
+    return f"- {e['date']} `{e['ref']}` — {e['body']}" + (f" [{tail}]" if tail else "")
+
+
+def _head_sha():
+    try:
+        return git("rev-parse", "--short", "HEAD").strip()
+    except RuntimeError:
+        return None
 
 
 def cmd_escalate(args, cfg):
-    intake = args.intake or cfg.get("intake_path") or os.path.expanduser("~/.claude/escalations.md")
+    intake = Path(args.intake or cfg.get("intake_path")
+                  or os.path.expanduser("~/.claude/escalations.md"))
     if args.line:
         ref = f"{args.file}:{args.line}"
     elif args.anchor:
         ref = f"{args.file}#{args.anchor}"
     else:
         ref = args.file
-    line = f"- {date.today().isoformat()} `{ref}` — {args.divergence}"
-    if args.disposition:
-        line += f". {args.disposition}"
-    existing = Path(intake).read_text(encoding="utf-8") if os.path.exists(intake) else ""
-    key = f"`{ref}`"
-    for el in existing.splitlines():  # S121: read-before-append, idempotent passes
-        if key in el and args.divergence in el:
-            print(f"dedup: already escalated ({ref}); not re-appended")
+    observed = args.observed or _head_sha() or "unknown"
+    lines = intake.read_text(encoding="utf-8").splitlines() if intake.exists() else []
+
+    # Read before append (S121). The dedup key is the churn-stable unit reference ALONE, never
+    # the pair of reference and kind: keying on the pair breaks against reclassification,
+    # because a later pass observing the same unit under the original kind finds no suppressing
+    # entry and appends a duplicate (S122).
+    for i, raw in enumerate(lines):
+        e = _parse_intake_line(raw)
+        if e is None or e["ref"] != ref:
+            continue
+        if e["fields"].get("kind") == "obsolete-citation" == args.kind:
+            # Exempt from suppression and counted instead: suppressing the second observation of
+            # the same stale statement destroys the frequency signal the observation window
+            # exists to measure. A reclassification preserves the accumulated count (S124).
+            n = int(e["fields"].get("occurrences") or "1") + 1
+            e["fields"].update(occurrences=str(n), latest=observed)
+            lines[i] = _render_intake(e)
+            intake.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            print(f"counted: obsolete-citation at {ref} now at {n} occurrence(s), "
+                  f"latest observation {observed}")
             return OK
-    Path(intake).parent.mkdir(parents=True, exist_ok=True)
+        print(f"suppressed: an entry already exists for {ref}; not re-appended (S122)")
+        print(f"  existing: {e['raw']}")
+        print("  Request reclassification of that entry rather than appending a duplicate.")
+        return OK
+
+    fields = {"kind": args.kind, "state": args.state, "observed": observed,
+              "context": args.context or PASS_CONTEXT}
+    if args.kind == "obsolete-citation":
+        fields.update(occurrences="1", latest=observed)
+    body = args.divergence + (f". {args.disposition}" if args.disposition else "")
+    intake.parent.mkdir(parents=True, exist_ok=True)
     with open(intake, "a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
+        fh.write(_render_intake({"date": date.today().isoformat(), "ref": ref,
+                                 "body": body, "fields": fields}) + "\n")
     print(f"escalated → {intake}")
     return OK
 
@@ -574,24 +841,118 @@ def cmd_self_test(args, cfg):
 
         record = d / ".consolidation" / "r.record"
         record.parent.mkdir(parents=True)
+        # `retained` is the severance vocabulary; a document pass retains with `still true`.
         record.write_text(
             "baseline_sha: " + baseline + "\n"
             "floor: self-report\n"
+            "floor_observed: " + baseline + "\n"
             "pass_kind: document\n"
             "unit_rule: document-paragraph\n"
             "scope: auth.md\n"
             "@@unit\nfile: auth.md\nlines: 1\n"
-            "disposition: retained\nbasis: structural header\n"
+            "disposition: still true\nbasis: service name matches auth/service.py\n"
             "@@unit\nfile: auth.md\nlines: 3\n"
             "disposition: obsolete\nbasis: legacy HMAC path removed\n"
             "@@unit\nfile: auth.md\nlines: 5\n"
-            "disposition: retained\nbasis: still true\n"
+            "disposition: still true\nbasis: TTL constant in auth/token.py is 15m\n"
             "@@unit\nfile: auth.md\nlines: 7\n"
-            "disposition: escalates (To be confirmed)\nbasis: external GDPR rule\n",
+            "disposition: not verifiable\nbasis: external GDPR rule\n",
             encoding="utf-8")
 
         cov = _run(["coverage-check", "--record", str(record)])
         check("coverage-check passes (4 == 4)", cov == OK)
+
+        # record-check asks whether the thing coverage-check counted is admissible at all
+        check("record-check passes on a complete document record",
+              _run(["record-check", "--record", str(record)]) == OK)
+        regen = d / "regen.record"
+        regen.write_text(record.read_text(encoding="utf-8").replace(
+            "disposition: obsolete", "disposition: regenerable → delete"), encoding="utf-8")
+        check("record-check rejects `regenerable → delete` in a document pass (S46)",
+              _run(["record-check", "--record", str(regen)]) == FAIL)
+        borrowed = d / "borrowed.record"
+        borrowed.write_text(record.read_text(encoding="utf-8").replace(
+            "disposition: still true\nbasis: service name matches auth/service.py",
+            "disposition: retained\nbasis: structural header"), encoding="utf-8")
+        check("record-check rejects the severance `retained` in a document pass",
+              _run(["record-check", "--record", str(borrowed)]) == FAIL)
+        no_basis = d / "nobasis.record"
+        no_basis.write_text(record.read_text(encoding="utf-8").replace(
+            "basis: legacy HMAC path removed\n", ""), encoding="utf-8")
+        check("record-check fails on a removal carrying no basis",
+              _run(["record-check", "--record", str(no_basis)]) == FAIL)
+        no_kind = d / "nokind.record"
+        no_kind.write_text(record.read_text(encoding="utf-8").replace(
+            "pass_kind: document\n", ""), encoding="utf-8")
+        check("record-check fails on a header with no pass_kind",
+              _run(["record-check", "--record", str(no_kind)]) == FAIL)
+
+        # the judgement half counts agent judgements only: `ruled → apply` authorizes a removal
+        # on a recorded human ruling and contributes zero (S73)
+        ruled = d / "ruled.record"
+        ruled.write_text(record.read_text(encoding="utf-8")
+                         .replace("disposition: obsolete",
+                                  "disposition: ruled → apply")
+                         .replace("basis: legacy HMAC path removed",
+                                  "basis: intake entry auth.md:3, ruling sha abc1234"),
+                         encoding="utf-8")
+        (d / ".consolidation.json").write_text('{"REMOVAL_JUDGEMENT_CAP": 0}', encoding="utf-8")
+        check("judgement half counts zero for a `ruled → apply` removal",
+              _run(["bound-check", "--record", str(ruled), "--judgement"]) == OK)
+        check("judgement half breaches on the same record's `obsolete` removal",
+              _run(["bound-check", "--record", str(record), "--judgement"]) == FAIL)
+        (d / ".consolidation.json").unlink()
+
+        # floor-staleness-check reads the floor's observation state out of the header
+        check("floor-staleness is undefined, and says so, on a self-report floor",
+              _run(["floor-staleness-check", "--record", str(record)]) == ADVISORY)
+        inv_nofloor = d / "inv_nofloor.record"
+        inv_nofloor.write_text(record.read_text(encoding="utf-8")
+                               .replace("floor: self-report\n", "floor: exclusion-inventory\n")
+                               .replace("floor_observed: " + baseline + "\n", ""),
+                               encoding="utf-8")
+        check("floor-staleness refuses to pass an inventory floor with no observation state",
+              _run(["floor-staleness-check", "--record", str(inv_nofloor)]) == FAIL)
+        fresh = d / "fresh.record"
+        fresh.write_text(record.read_text(encoding="utf-8").replace(
+            "floor: self-report\n", "floor: graph\n"), encoding="utf-8")
+        check("floor-staleness passes a graph floor built at the baseline",
+              _run(["floor-staleness-check", "--record", str(fresh)]) == OK)
+        stale = d / "stale.record"
+        old = date.fromordinal(date.today().toordinal() - 30).isoformat()
+        stale.write_text(record.read_text(encoding="utf-8")
+                         .replace("floor: self-report\n", "floor: graph\n")
+                         .replace("floor_observed: " + baseline, "floor_observed: " + old),
+                         encoding="utf-8")
+        check("floor-staleness fails a graph floor older than the threshold",
+              _run(["floor-staleness-check", "--record", str(stale)]) == FAIL)
+
+        # escalate: read-before-append, keyed on the unit reference ALONE (S121, S122). A doc
+        # reference is `path#anchor`, and the load-bearing-reference kind is this skill's own.
+        intake = d / "intake.md"
+        e1 = _run(["escalate", "--file", "auth.md", "--anchor", "retention", "--kind",
+                   "unverifiable-statement", "--divergence", "GDPR Art. 5 unverifiable in repo",
+                   "--intake", str(intake)])
+        check("escalate appends once with the S119 fields",
+              e1 == OK and "kind=unverifiable-statement" in intake.read_text(encoding="utf-8")
+              and "state=open" in intake.read_text(encoding="utf-8")
+              and "`auth.md#retention`" in intake.read_text(encoding="utf-8"))
+        _run(["escalate", "--file", "auth.md", "--anchor", "retention", "--kind",
+              "load-bearing-reference", "--divergence", "reworded, reclassified",
+              "--intake", str(intake)])
+        check("escalate suppresses on the reference alone, not the reference-and-kind pair",
+              len(intake.read_text(encoding="utf-8").strip().splitlines()) == 1)
+
+        # the obsolete-citation kind is exempt from suppression and counted instead (S124)
+        cite = d / "cite.md"
+        for _ in range(3):
+            _run(["escalate", "--file", "auth.md", "--anchor", "hmac", "--kind",
+                  "obsolete-citation", "--divergence", "cites the removed HMAC path",
+                  "--intake", str(cite)])
+        cite_text = cite.read_text(encoding="utf-8")
+        check("obsolete-citation is counted, not suppressed",
+              len(cite_text.strip().splitlines()) == 1 and "occurrences=3" in cite_text)
+        check("obsolete-citation carries a latest-observation sha", "latest=" in cite_text)
 
         # rewrite: delete the obsolete paragraph only
         Path("auth.md").write_text(doc.replace("The service uses the legacy HMAC path.\n", ""),
@@ -640,10 +1001,10 @@ def cmd_self_test(args, cfg):
         ghost_rec.write_text("baseline_sha: " + baseline + "\nfloor: self-report\n"
                              "pass_kind: document\nunit_rule: document-paragraph\n"
                              "scope: auth.md,absent.md\n"
-                             "@@unit\nfile: auth.md\nlines: 1\ndisposition: retained\nbasis: x\n"
+                             "@@unit\nfile: auth.md\nlines: 1\ndisposition: still true\nbasis: x\n"
                              "@@unit\nfile: auth.md\nlines: 3\ndisposition: obsolete\nbasis: x\n"
-                             "@@unit\nfile: auth.md\nlines: 5\ndisposition: retained\nbasis: x\n"
-                             "@@unit\nfile: auth.md\nlines: 7\ndisposition: retained\nbasis: x\n",
+                             "@@unit\nfile: auth.md\nlines: 5\ndisposition: still true\nbasis: x\n"
+                             "@@unit\nfile: auth.md\nlines: 7\ndisposition: still true\nbasis: x\n",
                              encoding="utf-8")
         check("coverage-check fails on a scope file absent at baseline",
               _run(["coverage-check", "--record", str(ghost_rec)]) == FAIL)
@@ -664,7 +1025,7 @@ def cmd_self_test(args, cfg):
         bullet.write_text("baseline_sha: " + list_base + "\nfloor: self-report\n"
                           "pass_kind: document\nunit_rule: document-paragraph\n"
                           "scope: list.md\n"
-                          "@@unit\nfile: list.md\nlines: 1\ndisposition: retained\nbasis: x\n"
+                          "@@unit\nfile: list.md\nlines: 1\ndisposition: still true\nbasis: x\n"
                           "@@unit\nfile: list.md\nlines: 3-5\n"
                           "disposition: still true\nbasis: verified against the code\n",
                           encoding="utf-8")
@@ -684,11 +1045,36 @@ def cmd_self_test(args, cfg):
         mech_rec.write_text("baseline_sha: " + mech_base + "\nfloor: self-report\n"
                             "pass_kind: document\nunit_rule: document-paragraph\n"
                             "scope: list.md\n"
-                            "@@unit\nfile: list.md\nlines: 1\ndisposition: retained\nbasis: x\n"
+                            "@@unit\nfile: list.md\nlines: 1\ndisposition: still true\nbasis: x\n"
                             "@@unit\nfile: list.md\nlines: 3-4\n"
                             "disposition: still true\nbasis: verified\n", encoding="utf-8")
         check("mechanical renumber is exempt beside a content commit",
               _run(["removal-authorization-check", "--record", str(mech_rec)]) == OK)
+
+        # The ordinary rewrite takes the blank line orphaned beside a deleted paragraph with it.
+        # A blank line *separates* paragraphs, so it falls in no unit under the paragraph rule
+        # and cannot be content-matched to a mechanical commit; without an explicit exemption no
+        # commit arrangement clears this gate for the commonest edit a document pass makes.
+        Path("para.md").write_text("Kept paragraph.\n\nObsolete paragraph.\n\nAlso kept.\n",
+                                   encoding="utf-8")
+        subprocess.run(["git", "add", "para.md"], check=True)
+        subprocess.run(["git", "commit", "-qm", "add para"], check=True)
+        blank_base = git("rev-parse", "HEAD").strip()
+        Path("para.md").write_text("Kept paragraph.\n\nAlso kept.\n", encoding="utf-8")
+        subprocess.run(["git", "add", "para.md"], check=True)
+        subprocess.run(["git", "commit", "-qm", "consolidation: para.md"], check=True)
+        blank_rec = d / "blank.record"
+        blank_rec.write_text("baseline_sha: " + blank_base + "\nfloor: self-report\n"
+                             "floor_observed: " + blank_base + "\npass_kind: document\n"
+                             "unit_rule: document-paragraph\nscope: para.md\n"
+                             "@@unit\nfile: para.md\nlines: 1\n"
+                             "disposition: still true\nbasis: verified\n"
+                             "@@unit\nfile: para.md\nlines: 3\n"
+                             "disposition: obsolete\nbasis: subject no longer exists\n"
+                             "@@unit\nfile: para.md\nlines: 5\n"
+                             "disposition: still true\nbasis: verified\n", encoding="utf-8")
+        check("removal-authorization passes when a paragraph takes its orphaned blank line",
+              _run(["removal-authorization-check", "--record", str(blank_rec)]) == OK)
 
         # baseline-ancestry --unit-gate wants the first commit to be consolidation-class,
         # not merely descended from the baseline (step 9 / S164)
@@ -728,6 +1114,18 @@ def cmd_self_test(args, cfg):
         check("severance coverage-check counts the 3 reference occurrences",
               _run(["coverage-check", "--record", str(sev_rec),
                     "--target", "docs/legacy.md"]) == OK)
+        # a severance record's admissible set is the disjoint two-member one, not the document's
+        sev_full = d / "sev_full.record"
+        sev_full.write_text(sev_rec.read_text(encoding="utf-8").replace(
+            "floor: exclusion-inventory\n",
+            "floor: exclusion-inventory\nfloor_observed: " + sev_base + "\n"), encoding="utf-8")
+        check("record-check passes a severance record on its own disposition set",
+              _run(["record-check", "--record", str(sev_full)]) == OK)
+        sev_bad = d / "sev_bad.record"
+        sev_bad.write_text(sev_full.read_text(encoding="utf-8").replace(
+            "disposition: retained", "disposition: still true"), encoding="utf-8")
+        check("record-check rejects a document disposition in a severance record",
+              _run(["record-check", "--record", str(sev_bad)]) == FAIL)
         # `severed` authorizes a removal in a severance pass; `obsolete` does not exist there
         check("severance bound-check counts `severed` against the judgement half",
               _run(["bound-check", "--record", str(sev_rec), "--judgement"]) == OK)
@@ -774,6 +1172,11 @@ def build_parser():
     sp.add_argument("--scope", nargs="*", help="docs to scope (repo-relative)")
     sp.add_argument("--pass-kind", choices=["document", "severance"], default="document")
 
+    sp = sub.add_parser("record-check",
+                        help="header complete; every disposition admissible for the pass kind, "
+                             "with its evidence")
+    sp.add_argument("--record", required=True)
+
     sp = sub.add_parser("coverage-check", help="record entry count == recomputed unit count")
     sp.add_argument("--record", required=True)
     sp.add_argument("--baseline")
@@ -805,13 +1208,20 @@ def build_parser():
     sp.add_argument("--record", required=True)
     sp.add_argument("--baseline")
 
-    sp = sub.add_parser("floor-staleness-check", help="graph floor age vs baseline (advisory)")
+    sp = sub.add_parser("floor-staleness-check", help="floor's observation state vs baseline")
+    sp.add_argument("--record", required=True)
+    sp.add_argument("--baseline")
 
-    sp = sub.add_parser("escalate", help="append a deduped flag to the intake")
+    sp = sub.add_parser("escalate", help="append a deduped, structured entry to the intake")
     sp.add_argument("--file", required=True)
     sp.add_argument("--line")
     sp.add_argument("--anchor")
     sp.add_argument("--divergence", required=True)
+    sp.add_argument("--kind", required=True, choices=list(ENTRY_KINDS),
+                    help="the entry kind; the dedup rule switches on it (S119, S124)")
+    sp.add_argument("--state", default="open", choices=list(ENTRY_STATES))
+    sp.add_argument("--observed", help="sha in effect at observation (default: short HEAD)")
+    sp.add_argument("--context", help=f"originating context (default: {PASS_CONTEXT})")
     sp.add_argument("--disposition")
     sp.add_argument("--intake")
 
@@ -833,6 +1243,7 @@ def main(argv=None):
     _PARSER = build_parser()
     _DISPATCH = {
         "target-set": cmd_target_set,
+        "record-check": cmd_record_check,
         "coverage-check": cmd_coverage_check,
         "scope-cross-check": cmd_scope_cross_check,
         "baseline-ancestry-check": cmd_baseline_ancestry,

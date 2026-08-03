@@ -15,7 +15,7 @@ Reasoning for every cited entry is in `~/.claude/documentation-lifecycle.md`. Th
 
 ## Implementation — the best-effort runner
 
-This skill ships a runner: `scripts/consolidate_comments.py` (stdlib-only Python 3). Invoke any gate as `python "<this skill's directory>/scripts/consolidate_comments.py" <gate>`. Each script the procedure names is a subcommand: `target-set`, `coverage-check`, `scope-cross-check`, `baseline-ancestry-check`, `bound-check`, `removal-authorization-check`, `floor-staleness-check`, `escalate`. Run `… self-test` to verify the install.
+This skill ships a runner: `scripts/consolidate_comments.py` (stdlib-only Python 3). Invoke any gate as `python "<this skill's directory>/scripts/consolidate_comments.py" <gate>`. Each script the procedure names is a subcommand: `target-set`, `record-check`, `coverage-check`, `scope-cross-check`, `baseline-ancestry-check`, `bound-check`, `removal-authorization-check`, `floor-staleness-check`, `escalate`. Run `… self-test` to verify the install.
 
 Two subcommands carry the procedure's step distinction in a flag. `bound-check --judgement --project-lines` is the step-five projection; `bound-check --measured` is the step-seven measurement against the tree; `bound-check` with no flag is the review-unit gate, enforcing both halves. `baseline-ancestry-check --unit-gate` adds step nine's parenthood clause to the ancestry check.
 
@@ -37,7 +37,7 @@ The controlled tier switches on automatically when configured; until then this i
 | `TARGET_SET_SCRIPT` | `consolidate_comments.py target-set` (graph if configured, else `--scope`) |
 | `RECORD_PATH` / `RECORD_FORMAT` / `RECORD_CHANNEL` | `.consolidation/<short-baseline-sha>.record`, line-oriented key-value, committed file |
 | `INTAKE_PATH` | `~/.claude/escalations.md` (already fixed by rule line eleven) |
-| `INTAKE_FORMAT` | one dated line: `` - YYYY-MM-DD `path:line` — divergence; disposition `` |
+| `INTAKE_FORMAT` | one dated line, with the `S119` fields in a trailing bracket: `` - YYYY-MM-DD `path:line` — divergence [kind=… state=… observed=… context=…] ``. The bracket is what read-before-append parses, so the dedup rule and the obsolete-citation count have something to read |
 | `INTAKE_REFERENCE_SCHEME` | `path:line` |
 | `UNIT_RULE_ENUMERATION` | pragmatic per-language comment syntax — pure comment lines (grouped) and `/* */` blocks; trailing/inline comments and Python docstrings are **not** enumerated and are left untouched (O2 extension). Not the closed enumeration |
 | `REVIEW_UNIT_IDENTITY` | the isolation commit's baseline sha |
@@ -52,6 +52,7 @@ The controlled tier switches on automatically when configured; until then this i
 ```
 baseline_sha: <sha>
 floor: self-report
+floor_observed: <sha or YYYY-MM-DD>
 unit_rule: comment
 scope: src/a.py,src/b.py
 @@unit
@@ -62,9 +63,11 @@ basis: restates the assignment at line 11
 @@unit
 file: src/a.py
 lines: 20
-disposition: escalates (frozen)
+disposition: not verifiable
 basis: external rule, unverifiable from file
 ```
+
+`disposition` is a member of the seven-row table below, spelled as it appears there — `record-check` rejects anything else, so a frozen unit is disposed `not verifiable` or `contradicts code → suspected defect` by name and not by a shorthand. `floor_observed` carries the second half of header field six, the floor's observation state, and is what `floor-staleness-check` ages against the baseline.
 
 An optional `narrowing_reason:` header line records why a declared scope is narrower than the target set; `scope-cross-check` requires it when it is, so a silent narrowing is not indistinguishable from evasion (`S93`).
 
@@ -192,6 +195,7 @@ Each verification precedes the step it authorizes. The single exception is decla
 
    | Script | Reads | Against | Fails when |
    |---|---|---|---|
+   | `record-check` | The record | The header field set and the disposition table | A header field is missing; an entry carries no disposition, or one outside this pass kind's set; or a disposition requiring evidence carries no basis (`S53`, `S137`, `S138`) |
    | `coverage-check` | The record; the declared scope at the baseline sha under the declared unit rule | Recomputed unit count | Entry count differs from unit count in either direction (`S88`, `S170`) |
    | `scope-cross-check` | The record header; the committed target-set output | The target set | Declared scope is broader than the target set, or narrower without one of exactly two recorded reasons: a bound-driven split, or a freshness exclusion (`S93`) |
    | `floor-staleness-check` | The floor's observation state in the header | The verification baseline | The floor is older than the baseline by more than `FLOOR_STALENESS_THRESHOLD`; it refuses to pass rather than passing silently (`S6`) |
@@ -199,7 +203,7 @@ Each verification precedes the step it authorizes. The single exception is decla
    | `bound-check --judgement` | The record | `REMOVAL_JUDGEMENT_CAP` | Countable entries exceed the cap. This half is known at the end of classification and does not depend on the rewrite (`S80`) |
    | `bound-check --project-lines` | The record; the baseline tree | `REMOVED_LINE_CAP` | The summed baseline lines of all removal-authorizing units exceed the cap. This is an upper bound, not the value, so exceeding it is a re-scope decision surfaced to the author, not an automatic failure (`S80`) |
 
-   **What this buys, precisely.** The count check defeats omission and duplication within the declared scope and nothing else. The cross-check raises the floor under scope plausibility without establishing that the scope was right. Neither defeats skimming: an agent that skims a long file can emit one plausible disposition per unit and pass the count perfectly. Skimming is addressed by the citation requirement in step four plus the human spot-check in step ten. A count-only check reported as coverage evidence is worse than no evidence, because it gets trusted (`S148`).
+   **What this buys, precisely.** `record-check` makes the count worth taking: it establishes that each thing counted is an admissible disposition carrying the evidence that disposition requires, so an unrecognized string can no longer pass as a considered retention. The count check then defeats omission and duplication within the declared scope and nothing else. The cross-check raises the floor under scope plausibility without establishing that the scope was right. Neither defeats skimming: an agent that skims a long file can emit one plausible disposition per unit and pass the count perfectly. Skimming is addressed by the citation requirement in step four plus the human spot-check in step ten. A count-only check reported as coverage evidence is worse than no evidence, because it gets trusted (`S148`).
 
    These checks read a record in the author's working tree. They are cheap local gates whose purpose is to fail before the rewrite is paid for. They are **not** controls, because their input is visible to nothing but the author (`S82`).
 
@@ -213,6 +217,7 @@ Each verification precedes the step it authorizes. The single exception is decla
 
    | Script | Recomputes | Fails when |
    |---|---|---|
+   | `record-check` | The header field set and every entry's disposition and evidence, against the materialized record | Any of the step-five conditions, now against the record the reviewer will read (`S53`, `S137`, `S138`) |
    | `coverage-check` | The unit count itself, not a count the record asserts | Inequality in either direction (`S88`, `S170`) |
    | `removal-authorization-check` | Every removed line in every consolidation-class commit | A removed line falls in no classifiable unit whose entry carries `ruled → apply`, `historical decision → ADR`, `obsolete` or `regenerable → delete`; or falls inside a unit whose entry is `still true` or frozen (`S89`) |
    | `baseline-ancestry-check --unit-gate` | Whether the declared baseline is an ancestor of the unit's consolidation-class commits and the parent of the first one, read through `CONSOLIDATION_COMMIT_MARK` | Either fails; it is an invalidation, not a warning (`S91`). Ancestry alone is nearly free in a linear history — what the parenthood clause catches is a functional commit sitting between the declared baseline and the consolidation work (`S164`) |
@@ -237,8 +242,8 @@ Written during the pass to a structured record at slot `RECORD_PATH` in the form
 | Review-unit identity | From slot `REVIEW_UNIT_IDENTITY` (`O9`) |
 | Unit rule | Named from the closed enumeration at slot `UNIT_RULE_ENUMERATION`; at least one rule with a counting implementation must exist for this pass kind or the coverage check does not exist (`S29`, `S30`) |
 | Declared scope | The set of classifiable units the pass commits to examining, with a narrowing reason where narrower than the target set (`S26`) |
-| Verification baseline sha | Captured at step two |
-| Floor provenance and its observation state | The knowledge graph's build state |
+| Verification baseline sha | Captured at step two; header field `baseline_sha`, which also carries review-unit identity per slot `REVIEW_UNIT_IDENTITY` |
+| Floor provenance and its observation state | The knowledge graph's build state. Two header fields: `floor` names the provenance, `floor_observed` its observation state as a sha or an ISO date. `record-check` requires both; `floor-staleness-check` ages the second against the baseline |
 
 **Entry — required contents** (`S138`): the churn-stable unit reference; the disposition; and the evidence that disposition requires, per the table above. A bare disposition is producible without reading anything. A citation is not.
 
@@ -282,6 +287,12 @@ The outer tier is not the rare case (`S144`). Both lower tiers terminate in the 
 
 Appending is done by a script, invoked by this skill. It is never a hand-written note in chat (`S119`).
 
+Invoke it as `… escalate --file PATH --line N --kind KIND --divergence TEXT`. `--kind` is required, one of `suspected-defect`, `unverifiable-statement`, `obsolete-citation` — the dedup rule switches on it, so an entry without one has no defined suppression behaviour. `--state` defaults to `open`; `--observed` defaults to the short HEAD sha; `--context` defaults to this skill's name. The script writes one dated line carrying the required fields in a trailing bracket:
+
+```
+- 2026-08-03 `src/a.py:20` — external rule, unverifiable from file [kind=unverifiable-statement state=open observed=a1b2c3d context=consolidate-comments]
+```
+
 | | |
 |---|---|
 | **Destination** | Slot `INTAKE_PATH`, format `INTAKE_FORMAT` — both `O7`, both prerequisites of the first shipment (`S118`, `S126`) |
@@ -311,3 +322,5 @@ Higher automation is not lower risk. This skill's characteristic failure — a d
 - This skill ships a **best-effort, human-supervised** runner. It diverges from the controlled bar defined above: the controlled tier requires a codebase knowledge graph (`S2`/`O1`) and the review-capacity calibration exercise (`O8`), neither of which the runner provides or invents. Caps ship as conservative defaults, not calibrated values; the graph is optional and detected, not assumed. Flagged rather than resolved, per rule line ten; the runner's floor field states which tier a given pass ran in.
 - `CONSOLIDATION_COMMIT_MARK` is a slot the runner adds, not one the companion declares. The gate cannot delimit a review unit or falsify step nine's parenthood clause without a way to recognize a consolidation-class commit, so the runner reads a subject prefix. Whether commit-subject convention is the right carrier, or whether `O9` should close with a different mechanism, is for a person to rule.
 - The mechanical exemption is matched by removed-line **content**, not by provenance. Two distinct removals of identical text — a genuine deletion and a reflow of the same line — are indistinguishable to it, so a content-identical unauthorized removal accompanying a mechanical commit would be exempted. This is the shape `O17` leaves open; the runner reports every exemption it applies so the hole is visible in the gate output.
+- `INTAKE_FORMAT` is `O7`-open, and the runner fills it with a one-line-plus-bracket form of its own choosing. It satisfies rule line eleven and carries every `S119` field, but whether the intake should be a line-oriented file at all — rather than a tracker the arbitrating human already reads — is for a person to rule alongside `O7`. The consumer is the control this skill's escalations depend on, and a format nobody consumes is where the append pathology reappears (`S68`).
+- `floor_observed` is **transcribed by the agent** into the record header, not read out of the graph. `floor-staleness-check` therefore ages a self-reported observation state, which is the same standing every header field has pre-rewrite (`S82`) and is materialized at the step-nine gate. Closing `O1` with a graph that can be introspected for its own build state would remove the transcription step; until then the staleness check is only as sound as the header line.
