@@ -63,6 +63,8 @@ disposition: escalates (frozen)
 basis: external rule, unverifiable from file
 ```
 
+An optional `narrowing_reason:` header line records why a declared scope is narrower than the target set; `scope-cross-check` requires it when it is, so a silent narrowing is not indistinguishable from evasion (`S93`).
+
 **Config** — `<project-root>/.consolidation.json` (optional, JSON): any cap key overrides its default; `knowledge_graph` (a command printing file paths) and `intake_path` are also read. Absent file = run on defaults = no graph, no calibrated caps.
 
 ---

@@ -224,10 +224,19 @@ def cmd_scope_cross_check(args, cfg):
         if not line.strip() or line.startswith("#"):
             continue
         target.add(line.split("\t")[0])
-    extra = declared - target
+    extra = declared - target                       # broader than the target set: blanket scope
     if extra:
         print(f"FAIL: declared scope not in target set: {sorted(extra)}")
         return FAIL
+    omitted = target - declared                     # narrower: needs a recorded reason (S93)
+    if omitted:
+        reason = header.get("narrowing_reason", "").strip()
+        if not reason:
+            print(f"FAIL: declared scope narrower than target set with no recorded "
+                  f"narrowing_reason; omitted: {sorted(omitted)}")
+            return FAIL
+        print(f"ok: declared scope ⊂ target set, narrowed ({reason}); omitted: {sorted(omitted)}")
+        return OK
     print(f"ok: declared scope ⊆ target set ({len(declared)} file(s))")
     return OK
 
@@ -406,7 +415,7 @@ def cmd_self_test(args, cfg):
             encoding="utf-8")
 
         cov = _run(["coverage-check", "--record", str(record)])
-        check("coverage-check passes (3 == 3)", cov == OK)
+        check("coverage-check passes (4 == 4)", cov == OK)
 
         # rewrite: delete the obsolete paragraph only
         Path("auth.md").write_text(doc.replace("The service uses the legacy HMAC path.\n", ""),
@@ -427,6 +436,27 @@ def cmd_self_test(args, cfg):
         # severance disabled with no exclusion_inventory
         sev = _run(["target-set", "--pass-kind", "severance"])
         check("severance disabled when no exclusion_inventory configured", sev == ADVISORY)
+
+        # scope-cross-check fails in both directions: broader is blanket scope; narrower
+        # needs a recorded narrowing_reason (S93), else it is indistinguishable from evasion
+        ts = d / "target.tsv"
+        ts.write_text("# floor: self-report\nauth.md\t3-3\tx\nplans/old.md\t1-1\ty\n", encoding="utf-8")
+        broad = d / "broad.record"
+        broad.write_text("baseline_sha: " + baseline + "\nfloor: self-report\npass_kind: document\n"
+                         "unit_rule: document-paragraph\nscope: auth.md,ghost.md\n", encoding="utf-8")
+        check("scope-cross-check fails on broader scope (ghost.md not in target set)",
+              _run(["scope-cross-check", "--record", str(broad), "--target-set", str(ts)]) == FAIL)
+        narrow = d / "narrow.record"
+        narrow.write_text("baseline_sha: " + baseline + "\nfloor: self-report\npass_kind: document\n"
+                          "unit_rule: document-paragraph\nscope: auth.md\n", encoding="utf-8")
+        check("scope-cross-check fails on narrower scope with no narrowing_reason",
+              _run(["scope-cross-check", "--record", str(narrow), "--target-set", str(ts)]) == FAIL)
+        narrow_ok = d / "narrow_ok.record"
+        narrow_ok.write_text("baseline_sha: " + baseline + "\nfloor: self-report\npass_kind: document\n"
+                             "unit_rule: document-paragraph\nscope: auth.md\n"
+                             "narrowing_reason: bound-driven split\n", encoding="utf-8")
+        check("scope-cross-check passes on narrower scope with a recorded reason",
+              _run(["scope-cross-check", "--record", str(narrow_ok), "--target-set", str(ts)]) == OK)
     finally:
         os.chdir(cwd)
 

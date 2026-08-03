@@ -262,10 +262,19 @@ def cmd_scope_cross_check(args, cfg):
         if not line.strip() or line.startswith("#"):
             continue
         target.add(line.split("\t")[0])
-    extra = declared - target
+    extra = declared - target                       # broader than the target set: blanket scope
     if extra:
         print(f"FAIL: declared scope not in target set: {sorted(extra)}")
         return FAIL
+    omitted = target - declared                     # narrower: needs a recorded reason (S93)
+    if omitted:
+        reason = header.get("narrowing_reason", "").strip()
+        if not reason:
+            print(f"FAIL: declared scope narrower than target set with no recorded "
+                  f"narrowing_reason; omitted: {sorted(omitted)}")
+            return FAIL
+        print(f"ok: declared scope ⊂ target set, narrowed ({reason}); omitted: {sorted(omitted)}")
+        return OK
     print(f"ok: declared scope ⊆ target set ({len(declared)} file(s))")
     return OK
 
@@ -492,6 +501,26 @@ def cmd_self_test(args, cfg):
         subprocess.run(["git", "commit", "-qm", "consolidation: m.py (bad)"], check=True)
         rem2 = _run(["removal-authorization-check", "--record", str(record)])
         check("removal-authorization fails on an unauthorized removal", rem2 == FAIL)
+
+        # scope-cross-check fails in both directions: broader is blanket scope; narrower
+        # needs a recorded narrowing_reason (S93), else it is indistinguishable from evasion
+        ts = d / "target.tsv"
+        ts.write_text("# floor: self-report\nm.py\t4-4\tx\nn.py\t2-2\ty\n", encoding="utf-8")
+        broad = d / "broad.record"
+        broad.write_text("baseline_sha: " + baseline + "\nfloor: self-report\nunit_rule: comment\n"
+                         "scope: m.py,z.py\n", encoding="utf-8")
+        check("scope-cross-check fails on broader scope (z.py not in target set)",
+              _run(["scope-cross-check", "--record", str(broad), "--target-set", str(ts)]) == FAIL)
+        narrow = d / "narrow.record"
+        narrow.write_text("baseline_sha: " + baseline + "\nfloor: self-report\nunit_rule: comment\n"
+                          "scope: m.py\n", encoding="utf-8")
+        check("scope-cross-check fails on narrower scope with no narrowing_reason",
+              _run(["scope-cross-check", "--record", str(narrow), "--target-set", str(ts)]) == FAIL)
+        narrow_ok = d / "narrow_ok.record"
+        narrow_ok.write_text("baseline_sha: " + baseline + "\nfloor: self-report\nunit_rule: comment\n"
+                             "scope: m.py\nnarrowing_reason: freshness exclusion\n", encoding="utf-8")
+        check("scope-cross-check passes on narrower scope with a recorded reason",
+              _run(["scope-cross-check", "--record", str(narrow_ok), "--target-set", str(ts)]) == OK)
 
         # escalate dedup against a temp intake
         intake = d / "intake.md"
