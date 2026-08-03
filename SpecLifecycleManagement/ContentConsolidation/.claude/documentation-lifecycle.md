@@ -59,7 +59,7 @@ Global, per developer, applying to every repository. Paths below are **toolchain
 
 | File | Where it goes | Which agent reads it | When it is loaded |
 |---|---|---|---|
-| `documentation-lifecycle-rules.md` | `~/.claude/rules/documentation-lifecycle.md` | The main agent, every session, every repository | At session start, unconditionally. A user-scope rules file with no `paths` frontmatter loads at launch and stays in context. This is what makes the rule set always-on at zero activation cost |
+| `documentation-lifecycle-rules.md` | `~/.claude/rules/documentation-lifecycle-rules.md` | The main agent, every session, every repository | At session start, unconditionally. A user-scope rules file with no `paths` frontmatter loads at launch and stays in context. This is what makes the rule set always-on at zero activation cost |
 | `consolidate-comments-SKILL.md` | `~/.claude/skills/consolidate-comments/SKILL.md` | The main agent, or a subagent the skill delegates to | On demand: when invoked by name, or when the agent judges the frontmatter description to match the request. The body costs nothing until then |
 | `consolidate-specs-SKILL.md` | `~/.claude/skills/consolidate-specs/SKILL.md` | Same | Same |
 | `documentation-lifecycle.md` | `~/.claude/documentation-lifecycle.md` | Any agent that follows the pointer on rule line twelve, or a citation in either skill | On demand only. It is **not** placed under `~/.claude/rules/`, and it is **not** referenced by an import directive, because either would load it at launch and defeat the reason it is a separate file |
