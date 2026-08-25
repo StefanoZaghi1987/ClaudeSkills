@@ -1,1 +1,16 @@
 .DS_Store
+Thumbs.db
+
+# Node / build artifacts
+node_modules/
+dist/
+build/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Claude Code local settings (ContentConsolidation/.claude deliverables stay tracked)
+.claude/settings.local.json
