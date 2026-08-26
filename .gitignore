@@ -14,3 +14,6 @@ __pycache__/
 
 # Claude Code local settings (ContentConsolidation/.claude deliverables stay tracked)
 .claude/settings.local.json
+
+# Marketing drafts — local only, never published to the repo
+marketing/

@@ -11,6 +11,8 @@ A curated collection of **8 production-ready [Claude skills](https://docs.claude
 
 Every project ships not only the skill itself but also the *prompts and specs that generated it* (see [Repository layout](#repository-layout)), so each skill is reproducible and auditable.
 
+**Why this exists:** documentation rots as code moves — and an AI agent that "helpfully" rewrites a spec or comment to match the code can launder the divergence into the docs, hiding a bug behind an agreement that never existed. The lifecycle toolkit takes the opposite stance: never resolve a documentation-versus-code divergence silently; freeze it and escalate to a human.
+
 ## Skills
 
 | Skill | Family | Turns … into … | Output |
@@ -30,7 +32,7 @@ All six generators share the same shape: they analyze the input, ask only for wh
 
 ### usecase-extractor — [BusinessAnalysis](BusinessAnalysis/skills/INSTALLATION_GUIDE.md)
 
-Extracts and structures use cases and user stories from requirements documents, functional specifications, and business analysis material. Identifies all actors and user roles, extracts explicitly defined use cases, infers the ones implied by functional requirements, and organizes each with code, name, target, inputs, outputs, and dependencies — grouped by user role. Built on 20+ years of business-analysis practice. Output: DOCX / XLSX / MD, multi-language. See the [quick reference](BusinessAnalysis/skills/QUICK_REFERENCE.md).
+Extracts and structures use cases and user stories from requirements documents, functional specifications, and business analysis material. Identifies all actors and user roles, extracts explicitly defined use cases, infers the ones implied by functional requirements, and organizes each with code, name, target, inputs, outputs, and dependencies — grouped by user role. Output: DOCX / XLSX / MD, multi-language. See the [quick reference](BusinessAnalysis/skills/QUICK_REFERENCE.md).
 
 ### meeting-review-generator — [MeetingReview](MeetingReview/skills/README.md)
 
