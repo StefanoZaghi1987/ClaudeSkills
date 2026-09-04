@@ -1,0 +1,7 @@
+Technical Translation System for Industrial Documentation
+
+This Claude Project provides automated translation of Italian technical documentation into multiple languages (primarily English) with complete formatting preservation and technical accuracy. The system processes Word and PDF documents through a sophisticated 7-phase workflow: document size evaluation, structural analysis, terminology preparation, user language selection, precision translation, quality assurance, and formatted output generation.
+
+Designed for minimal user intervention, the system automatically handles industrial machinery manuals, automation systems specifications, manufacturing equipment guides, safety documentation, and technical datasheets. It maintains absolute fidelity to source formatting, preserves numerical data and units, ensures terminology consistency, and adheres to industry standards (ISO, IEC, CE).
+
+The automated pipeline requires only target language selection from the user, then executes end-to-end processing including context window management for large documents, technical domain recognition, and regulatory content preservation. Output is delivered as a professionally formatted Word document with preserved layout, styles, tables, and visual elements.

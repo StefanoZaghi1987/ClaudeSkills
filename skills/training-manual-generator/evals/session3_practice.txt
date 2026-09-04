@@ -1,0 +1,73 @@
+[Fictional test fixture: all names, data, and references are invented.]
+[Training Recording Trace - React Course, Session 3 of 3: Practical Project]
+Date: 2024-04-17
+Duration: 120 minutes
+Instructor: Elena Ricci
+Participants: 10 frontend developers
+
+[00:00] INSTRUCTOR: Final session — everything becomes a real application. We build a task manager: projects, tasks per project, status changes. It uses components, props, state, hooks, context, and we will watch performance as it grows.
+
+[00:05] INSTRUCTOR: Project structure first, because a mess here costs you all week. Recommended layout — feature folders, not type folders:
+
+src/
+  components/      (shared building blocks: Button, Input, Modal)
+  features/
+    projects/      (ProjectList, ProjectForm, useProjects)
+    tasks/         (TaskList, TaskItem, useTasks)
+  context/
+  App.jsx
+
+Keep shared components generic; feature-specific files live in their feature folder.
+
+[00:20] INSTRUCTOR: Building the components bottom-up. TaskItem receives one task and two callbacks via props — onToggle, onDelete. It owns nothing:
+
+function TaskItem({ task, onToggle, onDelete }) {
+  return (
+    <li>
+      <label>
+        <input type="checkbox" checked={task.done} onChange={onToggle} />
+        {task.title}
+      </label>
+      <button onClick={onDelete}>Delete</button>
+    </li>
+  );
+}
+
+This is session one's pattern exactly: dumb child, callbacks down. [Live-builds TaskList and ProjectList on screen, ~20 minutes]
+
+[00:45] INSTRUCTOR: State management for the app. Where does the tasks state live? Follow the lifting rule from session one: the closest common parent of everything that needs it. We end up with App holding projects, each Project holding its tasks.
+
+For data fetching we extract custom hooks — useProjects and useTasks — exactly the pattern from session two. The hook fetches, stores, exposes a stable API:
+
+const { tasks, addTask, toggleTask } = useTasks(projectId);
+
+[01:00] INSTRUCTOR: Theme and current user go into context, one provider at the root. Two layers of context, both slow-changing — the correct use from session two.
+
+[01:10] PARTICIPANT: Our task list flickers when we toggle a checkbox. Why?
+
+[01:10] INSTRUCTOR: You are re-creating the whole list on every toggle — new array, new keys' content, index keys maybe? Two fixes: stable keys from the task id, and if the list grows large, React.memo on TaskItem with useCallback on the callbacks. We measured this pattern in session two: measure first, then memo the row component.
+
+[01:25] INSTRUCTOR: Routing, briefly — we only have time for basics. React Router: declare routes at the top, navigate with links:
+
+<Routes>
+  <Route path="/" element={<ProjectList />} />
+  <Route path="/projects/:id" element={<ProjectDetail />} />
+</Routes>
+
+useParams() reads the id. That is all our app needs today; routing has its own full course.
+
+[01:40] INSTRUCTOR: Testing, again briefly. The pyramid for this app:
+- One test per interactive component: render, simulate a click, assert (React Testing Library)
+- A few integration tests for the hooks with mocked fetch
+- Manual end-to-end pass before shipping
+
+Do not aim for a test on every line — cover the behaviors that break users.
+
+[01:55] INSTRUCTOR: Final recap of the whole course:
+1. Components, props, state — the foundation (session 1)
+2. Hooks rules, useEffect dependencies, context, custom hooks (session 2)
+3. Feature-folder structure, lifting state, measured memoization (all three sessions)
+
+The application you built today is your template for real work. Homework: add drag-and-drop reordering to the task list and watch what breaks when keys are wrong.
+
+[END OF RECORDING]

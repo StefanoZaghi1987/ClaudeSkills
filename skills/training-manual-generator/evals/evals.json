@@ -1,0 +1,255 @@
+{
+  "skill_name": "training-manual-generator",
+  "evals": [
+    {
+      "id": "eval-1",
+      "name": "Basic Training - Python Fundamentals",
+      "description": "Short 30-minute training session on Python basics. Tests ability to handle concise content with clear topics.",
+      "prompt": "Generate a comprehensive user manual from this Python fundamentals training recording. Use Italian language and Word format.",
+      "files": [
+        "evals/python_basics_training.txt"
+      ],
+      "assertions": [
+        "Manual contains an Introduction section with training overview and learning objectives",
+        "Manual identifies and covers at least 4 main topics from the training",
+        "Topics are organized with clear headings and logical hierarchy",
+        "Content depth varies based on topic relevance (more detail for core concepts)",
+        "Manual includes a Summary section with key concepts recap",
+        "Bold formatting is used appropriately for key concepts and critical information",
+        "Output is in Italian language as requested",
+        "Output is in Word format (.docx) as requested",
+        "Filename follows Training_Manual_[Topic]_[LANG]_[YYYY-MM-DD].docx with the Italian language code (IT)",
+        "On Claude Code the absolute file path is reported; on claude.ai the platform file delivery is used"
+      ]
+    },
+    {
+      "id": "eval-2",
+      "name": "Complex Training - REST API Integration",
+      "description": "90-minute comprehensive training with multiple topics, dependencies, and varying relevance levels. Tests advanced analysis and adaptive content depth.",
+      "prompt": "I have a transcript from our REST API integration training. Please create a professional user manual in English, PDF format.",
+      "files": [
+        "evals/api_training_trace.txt"
+      ],
+      "assertions": [
+        "Manual correctly identifies 6-8 distinct topics from the training",
+        "Relevance levels are appropriately assigned (HIGH/MEDIUM/LOW)",
+        "High-relevance topics receive comprehensive treatment (800+ words)",
+        "Medium-relevance topics receive solid coverage (400-800 words)",
+        "Low-relevance topics are covered concisely (150-400 words)",
+        "Topic dependencies are respected in organization (prerequisites before dependent topics)",
+        "Technical terminology is properly explained and defined",
+        "Multiple practical examples are included for high-relevance topics",
+        "Manual provides step-by-step procedures where applicable",
+        "Summary effectively synthesizes 8-12 key concepts",
+        "Output is in English as requested",
+        "Output is in PDF format (.pdf) as requested"
+      ]
+    },
+    {
+      "id": "eval-3",
+      "name": "Ambiguous Content - Mixed Topics",
+      "description": "Training with unclear structure and mixed relevance signals. Tests inference capabilities and quality warning system.",
+      "prompt": "Turn this training session into a user manual. Format: Markdown.",
+      "files": [
+        "evals/mixed_training_notes.txt"
+      ],
+      "assertions": [
+        "Skill requests language preference (since not specified)",
+        "Skill successfully infers topic relevance levels despite ambiguity",
+        "Manual is logically organized despite unclear source structure",
+        "Quality checks flag any significant issues or uncertainties",
+        "Manual notes limitations or inferred information where appropriate",
+        "Output is in Markdown format (.md) as requested",
+        "Content maintains professional quality despite source limitations"
+      ]
+    },
+    {
+      "id": "eval-4",
+      "name": "Multi-file Training - Complete Course",
+      "description": "Training session split across multiple recording files. Tests integration and synthesis capabilities.",
+      "prompt": "Create a comprehensive manual from these training session recordings. Language: Italian, Format: Word.",
+      "files": [
+        "evals/session1_intro.txt",
+        "evals/session2_advanced.txt",
+        "evals/session3_practice.txt"
+      ],
+      "assertions": [
+        "All files are successfully analyzed and integrated",
+        "Content from different sessions is synthesized cohesively",
+        "No duplicate or contradictory information",
+        "Logical flow maintained across integrated content",
+        "Topics from different sessions are appropriately organized",
+        "Manual reads as unified document, not separate sections",
+        "All source files are acknowledged in processing"
+      ]
+    },
+    {
+      "id": "eval-5",
+      "name": "Automatic Mode - Quick Generation",
+      "description": "Tests fully automatic mode with minimal user interaction.",
+      "prompt": "Generate a training manual from this uploaded training session automatically — use all defaults.",
+      "files": [
+        "evals/standard_training.txt"
+      ],
+      "assertions": [
+        "Skill uses default language (Italian) without prompting",
+        "Skill uses default format (Word) without prompting",
+        "Manual is generated with minimal user interaction",
+        "Quality checks run automatically without displaying unless issues found",
+        "Final output is delivered promptly with brief confirmation"
+      ]
+    },
+    {
+      "id": "eval-6",
+      "name": "Revision Request - Expand and Convert",
+      "description": "Tests the revision flow: expand one chapter from source material and convert the format.",
+      "prompt": "Earlier today you generated Training_Manual_Git_Fundamentals_IT_2026-08-27.docx from this trace. The branching chapter is too thin — expand it and give me the updated manual as a PDF.",
+      "files": [
+        "evals/standard_training.txt"
+      ],
+      "assertions": [
+        "Expansion draws only on information present in the source material",
+        "Previous language is kept without re-asking",
+        "Format is converted to PDF as requested",
+        "Summary is updated when the expansion adds critical information",
+        "Updated file keeps the naming convention with a _v2 revision suffix and .pdf extension",
+        "The earlier file is not overwritten"
+      ]
+    },
+    {
+      "id": "eval-7",
+      "name": "No Source - Ask Instead of Inventing",
+      "description": "Tests the no-source guard: invocation with no training content must request material, not fabricate a manual.",
+      "prompt": "Generate a training manual from our onboarding session.",
+      "files": [],
+      "assertions": [
+        "Skill asks for the transcript or the session notes",
+        "No manual is generated",
+        "No training content is invented"
+      ]
+    },
+    {
+      "id": "eval-8",
+      "name": "Partial Preferences - One Question Only",
+      "description": "Tests partial-preference handling and the language skip rule: format given, language missing.",
+      "prompt": "Create a user manual from this training session, in Markdown format.",
+      "files": [
+        "evals/session2_advanced.txt"
+      ],
+      "assertions": [
+        "Markdown format is respected without asking",
+        "Exactly one configuration question is asked: the language",
+        "A 'skip' or empty answer applies the Italian default",
+        "The language question is not repeated after an answer"
+      ]
+    },
+    {
+      "id": "eval-9",
+      "name": "Interactive Mode - Structure Decisions",
+      "description": "Tests interactive mode's two extra confirmations on a single-file session.",
+      "prompt": "Generate a manual from this JavaScript training session in interactive mode. English, Word.",
+      "files": [
+        "evals/javascript_advanced.txt"
+      ],
+      "assertions": [
+        "Analysis summary is followed by an offer to adjust topic relevance levels",
+        "Structure preview is presented for approval before generation begins",
+        "Generation starts only after the user approves the structure",
+        "Given preferences (English, Word) are respected without re-asking"
+      ]
+    },
+    {
+      "id": "eval-10",
+      "name": "Semi-Automatic Default - All Three Confirmations",
+      "description": "Tests the default mode with no mode requested: analysis summary, configuration question, and structure preview each appear once before generation.",
+      "prompt": "Allego la trascrizione della prima sessione del corso React. Genera il manuale.",
+      "files": [
+        "evals/session1_intro.txt"
+      ],
+      "assertions": [
+        "An ANALYSIS COMPLETE summary with topic list and relevance levels is presented before any configuration",
+        "Exactly one combined configuration question (language and format) is asked",
+        "A STRUCTURE PREVIEW with per-chapter page estimates is presented before any chapter text is written",
+        "Generation waits for the user's go-ahead at each confirmation",
+        "A 'skip' or empty configuration answer applies the per-question defaults (Italian, Word)"
+      ]
+    },
+    {
+      "id": "eval-11",
+      "name": "Non-Text Source - Request the Transcript",
+      "description": "Tests the non-text guard: an audio or video recording, or a link with no text trace, must produce a transcript request instead of a manual built from guessed content.",
+      "prompt": "Here is the recording of yesterday's training session: https://example.com/training-session-4 — generate the manual from it.",
+      "files": [],
+      "assertions": [
+        "Skill asks for the transcript or captions instead of using the recording or link directly",
+        "No manual is generated from the audio, video, or link",
+        "No training content is invented"
+      ]
+    },
+    {
+      "id": "eval-12",
+      "name": "Unsupported Format - Markdown Fallback",
+      "description": "Tests the unsupported-format guard: a format outside Word, PDF, and Markdown must be declined with a Markdown fallback offer, not produced.",
+      "prompt": "Generate a training manual from this Git session as a PowerPoint file (.pptx).",
+      "files": [
+        "evals/standard_training.txt"
+      ],
+      "assertions": [
+        "Skill states that only Word, PDF, and Markdown are supported",
+        "The unsupported format is flagged at the configuration step, before any manual content is generated",
+        "Markdown is offered as the fallback format",
+        "No file is generated in the unsupported format",
+        "No manual is generated until the user accepts a supported format"
+      ]
+    },
+    {
+      "id": "eval-13",
+      "name": "Change Request at Structure Preview",
+      "description": "Tests the Step 3.0 change-request branch: changes requested at the structure preview are applied and the revised structure is shown once more before generation.",
+      "prompt": "You just showed me the STRUCTURE PREVIEW for the manual from my JavaScript training (javascript_advanced.txt). Change of mind: make Design Patterns HIGH relevance and move its chapter before Memory Management. Then generate the manual.",
+      "files": [
+        "evals/javascript_advanced.txt"
+      ],
+      "assertions": [
+        "Both requested changes are applied (Design Patterns to HIGH, chapter moved before Memory Management)",
+        "A revised STRUCTURE PREVIEW is presented once more before any chapter text is written",
+        "The final manual reflects the revised structure"
+      ]
+    },
+    {
+      "id": "eval-14",
+      "name": "Right-to-left output language",
+      "description": "The user asks for the manual in Arabic as a PDF, fully automatic. Tests the right-to-left branch of PHASE 5, which contains a refusal: the fpdf2 fallback is switched off, so an unavailable weasyprint must stop and ask rather than ship unshaped text.",
+      "prompt": "Turn the attached training transcript into a manual. Fully automatic. Language: Arabic. Format: PDF.",
+      "files": [
+        "evals/python_basics_training.txt"
+      ],
+      "assertions": [
+        "No configuration question is asked: fully automatic mode applies the stated language and format directly",
+        "On an environment without document skills, the PDF is built with weasyprint and the fpdf2 fallback is NOT used, because fpdf2 does not shape right-to-left text",
+        "If weasyprint is unavailable, the skill asks the user to install it or offers Markdown instead, rather than producing a PDF with unshaped text",
+        "The rendered PDF lays the text out right-to-left, not left-to-right",
+        "The three main sections are present — Introduction, Discussed Topics, Summary — with their titles written in Arabic",
+        "Code samples, identifiers and Python keywords stay in their original left-to-right form inside the Arabic text",
+        "The filename carries the uppercase language code: Training_Manual_[Primary_Topic]_AR_[YYYY-MM-DD].pdf",
+        "Page size is A4",
+        "Numeric runs inside the right-to-left text — step numbers, versions, dates, signed or unit-bearing values, and the page estimates in the delivery message — read left-to-right, so no sign or unit detaches from its value"
+      ]
+    },
+    {
+      "id": "eval-15",
+      "name": "Unreadable source - scanned PDF",
+      "description": "The training material is described as a scan with no extractable text. Tests the Step 1.1 unreadable-file guard, the sibling of the non-text-source guard: say the file cannot be read, ask for a text version, and never guess the session's content.",
+      "prompt": "Here is our onboarding training session as a scanned, image-only PDF with no selectable text. Generate the user manual from it.",
+      "files": [],
+      "assertions": [
+        "The skill states plainly that the file cannot be read on this platform, and names it",
+        "It asks for a text version, a transcript, or a different format",
+        "On Claude Code it may first offer to convert the file locally where a suitable tool is available",
+        "No manual is generated, and no topic, relevance level or example is invented",
+        "No analysis summary and no configuration question is presented before readable content arrives"
+      ]
+    }
+  ],
+  "eval_notes": "All sample material is fictional. Cases map to the rules they test: eval-1/2 content depth and relevance budgets; eval-3 inference under ambiguity plus quality warnings; eval-4 multi-file synthesis; eval-5 automatic-mode defaults; eval-6 revision flow and the version-suffixed filename; eval-7 the no-source guard; eval-8 partial preferences and the language skip rule; eval-9 interactive-mode confirmations; eval-10 the three default-mode confirmations; eval-11 the non-text-source guard; eval-12 the unsupported-format fallback; eval-13 the structure-preview change request. Eval-14 covers a branch no other case reaches: a right-to-left output language, where the fpdf2 fallback is off, an unavailable weasyprint must stop and ask instead of shipping unshaped text, and the numbers inside that text keep their own left-to-right order. Eval-15 covers the unreadable-file guard, the sibling of eval-11's non-text-source guard: a scanned, image-only source, where the skill names the file and asks for a readable one instead of inventing a session. Fifteen cases in total."
+}

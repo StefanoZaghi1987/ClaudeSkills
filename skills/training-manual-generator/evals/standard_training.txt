@@ -1,0 +1,64 @@
+[Fictional test fixture: all names, data, and references are invented.]
+[Training Recording Trace - Git Fundamentals]
+Date: 2024-05-14
+Duration: 60 minutes
+Instructor: Luca Moretti
+Participants: 14 new team members
+
+[00:00] INSTRUCTOR: Welcome. Today: Git from zero to the daily workflow you will use every day here. Repositories, commits, branching, remotes, and how to get out of trouble. This is essential — everything we ship goes through Git.
+
+[00:04] INSTRUCTOR: A repository is a project folder that Git tracks. Two ways to get one: clone an existing repository, or start your own with git init. Cloning copies the full history, not just the files:
+
+git clone https://git.example.com/team/project.git
+git init
+
+The working directory is where you edit; the repository is Git's own database in the hidden .git folder.
+
+[00:12] INSTRUCTOR: The commit cycle — this is THE core loop of Git. Three states: modified, staged, committed:
+
+git status          (where am I?)
+git add file.txt    (stage it)
+git commit -m "Add login form"
+
+The staging area is a deliberate checkpoint: you choose exactly what goes into the next commit. Stage the login form, leave the debug logging out. A commit is a snapshot with a message — write messages that say WHY, the diff already says what.
+
+[00:22] PARTICIPANT: What if I stage a file by mistake?
+
+[00:22] INSTRUCTOR: git restore --staged file.txt unstages it, keeping your changes. Safe, use it freely.
+
+[00:25] INSTRUCTOR: Branching — Git's superpower. A branch is just a movable label on a commit. Create one for every piece of work:
+
+git switch -c feature/login-form
+git switch main
+
+Why branches: you can experiment without touching main, several people work in parallel, and half-finished work never reaches the shared line. Our rule: never commit directly to main.
+
+[00:35] INSTRUCTOR: Merging. When your feature is done, bring it into main:
+
+git switch main
+git merge feature/login-form
+
+If two people changed the same lines, Git refuses to guess — a conflict. Open the file, look for the conflict markers, keep the right code, remove the markers, stage, commit. Conflicts look scary; they are just Git asking you a question.
+
+[00:45] INSTRUCTOR: Remotes — working with the shared copy:
+
+git pull    (fetch and merge the remote changes in)
+git push    (publish your commits)
+
+The daily loop: pull, branch, commit often, push, pull again before merging. Small, frequent pulls keep conflicts tiny.
+
+[00:50] INSTRUCTOR: Two habits to finish:
+1. .gitignore lists what Git must never track — build output, local config, credentials. Commit a .gitignore on day one of a project.
+2. When lost: git status first, then git log --oneline, then git reflog — the reflog remembers every position your branch has ever had. Almost nothing in Git is truly lost.
+
+[00:56] INSTRUCTOR: Recap:
+1. Clone or init to start; the .git folder holds the history
+2. Modify → stage → commit; messages say why
+3. Branch per piece of work; never commit to main directly
+4. Merge; conflicts are questions, not disasters
+5. Pull and push often
+6. .gitignore from day one; git status and git reflog when lost
+
+Practice: create a repository, branch, make a conflict on purpose, and resolve it. See you at the advanced session next month.
+
+[END OF RECORDING]

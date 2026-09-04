@@ -1,0 +1,175 @@
+{
+  "skill_name": "technical-summary-generator",
+  "evals": [
+    {
+      "id": "eval-1",
+      "name": "Single Document - Industrial Pump Manual",
+      "description": "Single attached file; language and format already stated in the prompt. Tests the basic single-file path and the skip rule.",
+      "prompt": "Ho appena ricevuto il manuale di installazione di una pompa centrifuga industriale. Puoi farmi un riassunto tecnico in italiano in Word? Lo allego adesso.",
+      "files": [
+        "evals/sample-document.md"
+      ],
+      "assertions": [
+        "No preference question is asked (language and format already stated); generation starts once the document is read",
+        "Report is a .docx file written in Italian",
+        "Report contains exactly three top-level sections (introduction, topics, final synthesis), with headings written in Italian",
+        "The topics section covers installation steps, technical specifications, safety warnings, and maintenance",
+        "Numerical specifications (e.g., 120 m³/h, 7,5 kW, IP55) match the source exactly",
+        "File is named following the summary_*_IT.docx convention",
+        "On Claude Code the absolute file path is reported; on claude.ai the platform file delivery is used"
+      ]
+    },
+    {
+      "id": "eval-2",
+      "name": "URL Source - Example Page",
+      "description": "Single URL input with language and format already specified. Tests the URL success path and the full skip rule.",
+      "prompt": "Can you summarize the technical content at this URL for me? https://example.com — I need it in English as a PDF.",
+      "files": [],
+      "assertions": [
+        "URL content is fetched and analyzed before anything else",
+        "No preference question is asked (language and format already stated)",
+        "The report reflects the actual content of the fetched page (the placeholder page is thin, so depth expectations stay modest)",
+        "Summary is a structured PDF in English named summary_*_EN.pdf"
+      ]
+    },
+    {
+      "id": "eval-3",
+      "name": "Multi-file Aggregation - Installation Manuals",
+      "description": "Three attached technical files merged into one report. Tests corpus aggregation.",
+      "prompt": "Allego tre documenti tecnici (manuali di installazione di tre apparecchiature industriali, tre copie dello stesso esempio). Voglio un unico report che li sintetizzi tutti e tre, in italiano, formato Markdown.",
+      "files": [
+        "evals/sample-document.md",
+        "evals/sample-document.md",
+        "evals/sample-document.md"
+      ],
+      "assertions": [
+        "All three files are aggregated into one corpus before analysis",
+        "A single Markdown file in Italian is produced",
+        "The report covers the topics of all three documents, not one report per file",
+        "Every topic the Phase 3 analysis identified reaches Discussed Topics, on its own or grouped under a broader heading, and no source document is left unrepresented"
+      ]
+    },
+    {
+      "id": "eval-4",
+      "name": "Partial Retrieval - One URL Fails",
+      "description": "Two URLs, one accessible and one returning 404. Tests per-URL notification and aggregation of the successfully retrieved content.",
+      "prompt": "Summarize these two pages for me: https://example.com and https://example.com/pump-series-b. I want a technical summary in English as a Word document.",
+      "files": [],
+      "assertions": [
+        "Both URLs are attempted before anything else",
+        "The user is told which URL failed (https://example.com/pump-series-b) and why",
+        "The run proceeds with the successfully retrieved content instead of stopping",
+        "A single .docx summary in English follows the mandatory three-section structure and reflects the retrieved page"
+      ]
+    },
+    {
+      "id": "eval-5",
+      "name": "Language Override - Scientific Article",
+      "description": "Attached scientific article (sample-article.md) summarized in French as PDF. Tests non-default, non-Italian output.",
+      "prompt": "Ti allego un articolo scientifico sulla corrosione dell'acciaio inossidabile in ambienti salini. Riassumilo in francese come PDF.",
+      "files": [
+        "evals/sample-article.md"
+      ],
+      "assertions": [
+        "No preference question is asked (language and format already stated)",
+        "A structured PDF report in French is produced",
+        "Report covers the experimental methodology, the comparative results, the material properties, and the conclusions",
+        "Acronyms are expanded in French (SCC, LPR, PREN)",
+        "Numerical results (e.g., 11,2 µm/anno, 0,32 mm, 2 000 ore) match the source exactly",
+        "File is named following the summary_*_FR.pdf convention"
+      ]
+    },
+    {
+      "id": "eval-6",
+      "name": "No source attached",
+      "description": "Prompt with no attachment, pasted text, or URL. Tests the Phase 1 guard.",
+      "prompt": "Ciao, puoi farmi un riassunto tecnico del manuale? Te lo mando tra poco.",
+      "files": [],
+      "assertions": [
+        "The FIRST message asks the user to attach, paste, or link the source document(s)",
+        "The request is written in Italian, the language of the user's request",
+        "No preference question (language, format) is asked and no report is generated before the source arrives"
+      ]
+    },
+    {
+      "id": "eval-7",
+      "name": "Preference question - nothing stated",
+      "description": "Single attached file, neither language nor format stated. Tests the single combined question and its language.",
+      "prompt": "Riassumimi questo manuale tecnico.",
+      "files": [
+        "evals/sample-document.md"
+      ],
+      "assertions": [
+        "Exactly ONE message asks for both language and format together, before any report content",
+        "The question is written in Italian, the language of the user's request",
+        "Italian is offered as the default; an 'Other' option is available for both questions",
+        "No report is generated before the user answers"
+      ]
+    },
+    {
+      "id": "eval-8",
+      "name": "Partial Preferences - Format stated, Language not",
+      "description": "Attached file with the output format stated but the language unstated. Tests the omit-answered-questions rule: only the missing preference is asked.",
+      "prompt": "Riassumimi questo manuale tecnico in Markdown.",
+      "files": [
+        "evals/sample-document.md"
+      ],
+      "assertions": [
+        "Exactly ONE question is asked, requesting only the output language; the format is not asked again",
+        "The question is written in Italian, the language of the user's request",
+        "Italian is offered as the default",
+        "No report is generated before the user answers"
+      ]
+    },
+    {
+      "id": "eval-9",
+      "name": "Partial Preferences - Language stated, Format not",
+      "description": "Attached file with the output language stated but the format unstated. Tests the omit-answered-questions rule on the other axis, and the Word default when the user names no format.",
+      "prompt": "Riassumimi questo manuale tecnico in italiano.",
+      "files": [
+        "evals/sample-document.md"
+      ],
+      "assertions": [
+        "Exactly ONE question is asked, requesting only the output format; the language is not asked again",
+        "The question is written in Italian, the language of the user's request",
+        "If the user replies without choosing a format, the skill defaults to Word (.docx) without asking again",
+        "No report is generated before the user answers"
+      ]
+    },
+    {
+      "id": "eval-10",
+      "name": "Total Retrieval Failure - Both URLs Dead",
+      "description": "Two URLs, both returning 404. Tests the full Phase 1 stop guard: per-URL notification, no report, no preference question.",
+      "prompt": "Summarize these two pages for me: https://example.com/manual-a and https://example.com/manual-b. I want a technical summary in English as a Word document.",
+      "files": [],
+      "assertions": [
+        "Both URLs are attempted before anything else",
+        "The user is told that both URLs failed (https://example.com/manual-a and https://example.com/manual-b) and why",
+        "No report is generated: the empty corpus is not summarized",
+        "No preference question (language, format) is asked; the skill stops and asks the user how to proceed",
+        "The stop message is written in English, the language of the user's request"
+      ]
+    },
+    {
+      "id": "eval-11",
+      "name": "Right-to-left output language",
+      "description": "The user asks for the summary in Arabic as a PDF. Tests the right-to-left branch of Phase 8, which contains a refusal: the fpdf2 fallback is switched off, so an unavailable weasyprint must stop and ask rather than ship unshaped text. Also grades the Phase 4 to Phase 6 terminology handoff, since the target language is only known from Phase 5 onwards.",
+      "prompt": "Summarize the attached document in Arabic as a PDF.",
+      "files": [
+        "evals/sample-document.md"
+      ],
+      "assertions": [
+        "No preference question is asked: language and format were both stated in the request",
+        "On an environment without document skills, the PDF is built with weasyprint and the fpdf2 fallback is NOT used, because fpdf2 does not shape right-to-left text",
+        "If weasyprint is unavailable, the skill asks the user to install it or offers Markdown instead, rather than producing a PDF with unshaped text",
+        "The rendered PDF lays the text out right-to-left, not left-to-right",
+        "The three mandatory sections are present, with their titles written in Arabic",
+        "Acronym expansions are written in Arabic, while the acronyms themselves and the internationally recognized terms (ISO codes, part numbers, model codes) keep their original form",
+        "The filename carries the uppercase language code: summary_[abbreviated_source_name]_AR.pdf",
+        "Page size is A4",
+        "Numeric runs inside the Arabic text — specification values, tolerances, part numbers, standard references, dates — read left-to-right, so no sign or unit detaches from its value"
+      ]
+    }
+  ],
+  "eval_notes": "All sample material is fictional: evals/sample-document.md is an invented Italian installation/maintenance manual for an industrial centrifugal pump (model CP-200), and evals/sample-article.md is an invented Italian scientific article on stainless-steel corrosion in saline environments (case 5); case 3 attaches the manual three times to exercise the aggregation path. URLs use the reserved example.com domain, so a runner can never fetch a real third-party site: the root https://example.com serves a real, stable placeholder page, while every subpath returns 404. Cases cover: skip rule (1, 2, 5), URL success path (2), partial retrieval with per-URL notification (4), multi-source aggregation (3), language override (5), missing source (6), the combined preference question in the user's language (7), and partial preferences with one preference missing (8: format stated, 9: language stated, including the Word default when the user names no format), and total retrieval failure with the stop guard (10). Every case that produces a report expects the mandatory three-section structure from references/report-structure.md and the summary_*_[LANG].[ext] filename convention from SKILL.md. Case 11 covers a branch no other case reaches: a right-to-left output language, where the fpdf2 fallback is off and an unavailable weasyprint must stop and ask instead of shipping unshaped text; it also grades the Phase 4 to Phase 6 terminology handoff, since the target language is only known from Phase 5 onwards, and the left-to-right order of the numbers inside that text. Case 3 also grades the Phase 7 topic-coverage check: every topic Phase 3 identified reaches the report. Eleven cases in total."
+}

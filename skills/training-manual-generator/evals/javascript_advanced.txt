@@ -1,0 +1,98 @@
+[Fictional test fixture: all names, data, and references are invented.]
+[Training Recording Trace - Advanced JavaScript Patterns]
+Date: 2024-04-18
+Duration: 60 minutes
+Instructor: Davide Ricci
+Participants: 9 frontend developers
+
+[00:00] INSTRUCTOR: Welcome back. Today is all about advanced JavaScript: closures, async patterns, the prototype chain, memory, and a quick look at design patterns. Two of these matter far more than the rest — closures and async/await. If you take only two things from today, take those.
+
+[00:03] INSTRUCTOR: Closures first — this is CRITICAL, it comes up in every code review. A closure is a function that remembers the variables of the scope where it was created, even after that scope has returned:
+
+function counter() {
+  let count = 0;
+  return function () {
+    count += 1;
+    return count;
+  };
+}
+
+const next = counter();
+next(); // 1
+next(); // 2
+
+The inner function keeps `count` alive. This is not a bug — it is by design.
+
+[00:08] INSTRUCTOR: Why do closures matter in real code? Three everyday uses:
+1. Data privacy — the variable is unreachable from outside
+2. Callbacks and event handlers — they carry their context with them
+3. Function factories — configure a function once, reuse it everywhere
+
+[00:11] PARTICIPANT: Is this the same as a global variable?
+
+[00:11] INSTRUCTOR: Good question — no. A global is visible to everything; a closed-over variable is visible only to the function that captured it. Scope decides who sees what. That brings us to scope itself: block scope with let and const, function scope with var. Prefer let and const always; var leaks out of blocks and causes exactly the bugs closures are blamed for.
+
+[00:16] INSTRUCTOR: Scope rules worth memorizing:
+- const blocks reassignment, not mutation — a const array can still be pushed to
+- Inner scopes read outer scopes, never the reverse
+- Lookup walks outward and stops at the first match
+
+[00:20] INSTRUCTOR: Now the second big topic: async/await. Also CRITICAL — modern JavaScript is asynchronous, and this syntax is how we keep it readable. await pauses the function until the promise settles:
+
+async function loadUser(id) {
+  const response = await fetch(`/api/users/${id}`);
+  const user = await response.json();
+  return user;
+}
+
+The function reads top-to-bottom like synchronous code, but it yields control at every await.
+
+[00:26] INSTRUCTOR: Error handling — always wrap awaits that can fail:
+
+try {
+  const user = await loadUser(42);
+} catch (error) {
+  console.error("Load failed:", error);
+}
+
+An unhandled rejection crashes silently in some environments. In production, every await over the network sits in a try/catch or has a .catch on the calling promise.
+
+[00:31] PARTICIPANT: Can I run two requests at the same time?
+
+[00:31] INSTRUCTOR: Yes — and you should. Sequential awaits waste time:
+
+// Slow: waits for each in turn (~2s total)
+const a = await getUser(1);
+const b = await getPosts(1);
+
+// Fast: both in flight (~1s total)
+const [a, b] = await Promise.all([getUser(1), getPosts(1)]);
+
+Promise.all fails fast: one rejection rejects the whole batch. Promise.allSettled waits for everything and reports each outcome — use it when partial results are still useful.
+
+[00:38] INSTRUCTOR: Quick note on the prototype chain, since it explains where methods actually live. Every object has a hidden link to a prototype object; property lookup walks that chain. `array.map` is not on your array — it is on Array.prototype, one link up. ES6 classes are syntax over this same mechanism:
+
+class Greeter {
+  greet() { return "hello"; }
+}
+const g = new Greeter();
+g.greet(); // found on Greeter.prototype
+
+For everyday work, use classes or factories and let the chain do its job — you rarely touch Object.create or __proto__ directly anymore.
+
+[00:45] INSTRUCTOR: Memory management — shorter topic, but it bites people. JavaScript collects garbage automatically; the rule is: an object dies when nothing references it. The classic leak in a web app is the forgotten event listener:
+
+function mount() {
+  document.addEventListener("resize", onResize);
+}
+function unmount() {
+  // listener still attached — onResize and everything it captures stay alive
+}
+
+Remove listeners in cleanup, clear intervals, and let closures go out of scope when the feature unmounts. The DevTools Memory profiler shows what is retained and by whom.
+
+[00:52] INSTRUCTOR: Last topic, and I'll keep it brief — design patterns. Read the classic ones, don't worship them. The two you will actually use: Module (wrap private state, export a small API — a closure, as we saw) and Observer (subscribe/unsubscribe — every event bus and reactive store). The rest you will recognize in libraries when you meet them.
+
+[00:57] INSTRUCTOR: Recap. Today's essentials: closures capture scope — master them; async/await with try/catch and Promise.all — master them too. Prototype chain: know lookup walks upward. Memory: remove what you no longer need. Patterns: Module and Observer are the practical ones. Practice with the counter and Promise.all examples before next session.
+
+[END OF RECORDING]
