@@ -1,0 +1,309 @@
+{
+  "skill_name": "web-site-to-document",
+  "evals": [
+    {
+      "id": "eval-1",
+      "name": "Static site with defaults",
+      "description": "URL given, everything else default. Tests the happy path: ask only what is missing, the filename convention, A4, and platform-appropriate delivery.",
+      "prompt": "Please save this documentation site into one document: https://help.example.com/getting-started",
+      "files": [],
+      "assertions": [
+        "At most the format, depth, and domain-scope defaults (Word, unlimited, same domain only) are confirmed — the URL is never asked for again",
+        "The filename follows {domain}_{YYYY-MM-DD}_{depth_label}.{ext}, e.g. help_example_com_[date]_full.docx",
+        "The Word file is A4",
+        "On Claude Code the absolute file path is reported; on claude.ai the platform's file delivery presents the file in the conversation",
+        "The document contains a cover page, a table of contents, one section per page with source URL, and a References and Attachments section when binary files are linked",
+        "A link that answers with something other than a web page (a full-size image, a JSON endpoint) is skipped on its headers, without its body being downloaded and thrown away, and the skip counts as neither a page nor an error"
+      ]
+    },
+    {
+      "id": "eval-2",
+      "name": "JavaScript-rendered site",
+      "description": "SPA detected at analysis. Tests the JS branch: connector used when present, honest failure when absent, and the sparse-content stop on the pipeline path.",
+      "prompt": "Convert https://app.example.com/docs into a Word document.",
+      "files": [],
+      "assertions": [
+        "JavaScript rendering is detected in the analysis step and the user is told before extraction starts",
+        "If a Chrome MCP connector is available, the skill switches to the Chrome MCP workflow instead of static fetching, using the connector's actual tool names",
+        "If no connector is available, the skill says plainly that full extraction is not possible in this environment, offers best-effort static extraction, and does not claim success",
+        "On the Claude Code pipeline, a run ending in SPARSE CONTENT WARNING builds no document: the extracted pages are saved to pages.json and the user is offered re-extraction via Chrome MCP or a best-effort rebuild from that file",
+        "On a site the analysis called JavaScript-rendered, the pipeline gives up after its first ten near-empty pages rather than crawling the whole site first; a static site whose landing pages happen to be thin still runs to completion"
+      ]
+    },
+    {
+      "id": "eval-3",
+      "name": "Configuration pre-answered (PDF, 2 levels, subdomains)",
+      "description": "Format, depth, and scope all stated in the request. Tests ask-only-what-is-unanswered and the Nlevels filename label.",
+      "prompt": "Archive learn.example.com as PDF, 2 levels deep, following subdomains too. Don't ask me anything else.",
+      "files": [],
+      "assertions": [
+        "No configuration question is asked: format, depth, and scope were all stated in the request",
+        "The filename carries the 2levels label, e.g. learn_example_com_[date]_2levels.pdf",
+        "Links are followed only on the base domain and its subdomains",
+        "The PDF is A4 and contains a table of contents"
+      ]
+    },
+    {
+      "id": "eval-4",
+      "name": "robots.txt and binary links",
+      "description": "Extraction of a site that disallows some paths, asks for a crawl delay, and links binary files. Tests robots compliance and the References-and-Attachments contract.",
+      "prompt": "Please extract everything from https://help.example.com into Markdown, including any files it links to.",
+      "files": [],
+      "assertions": [
+        "robots.txt is respected: disallowed pages are skipped and logged",
+        "Binary files (PDF, ZIP, etc.) are not fetched; they are listed in the References and Attachments section of the document",
+        "Blocked or unreachable domains are excluded automatically and reported in the final summary",
+        "Per-page errors are logged and the extraction continues rather than aborting",
+        "A Crawl-delay in robots.txt is respected: the crawl is paced at the interval the site asks for, the user is told the pace before extraction starts, and a lower --rate-limit does not override it; on a branch that cannot wait between fetches the user is told the site asks for an interval this environment cannot honour, instead of the crawl going ahead at full speed"
+      ]
+    },
+    {
+      "id": "eval-5",
+      "name": "Same site extracted twice",
+      "description": "A repeat extraction that would repeat the filename. Tests the never-overwrite collision rule, now enforced by the Claude Code script as well.",
+      "prompt": "Extract https://help.example.com into Word, full depth. This exact extraction already ran earlier today — the archive file named for today, help_example_com_<today>_full.docx, is already in the working directory. Do not lose it.",
+      "files": [],
+      "assertions": [
+        "Before writing, the skill checks whether the target filename already exists and applies the _v2 (then _v3) collision rule instead of silently overwriting",
+        "Any pre-existing archive is preserved byte-for-byte, and the user is told exactly which file was created"
+      ]
+    },
+    {
+      "id": "eval-6",
+      "name": "Italian conversation, English scaffold",
+      "description": "The user writes in Italian. Tests the three language layers: Italian conversation, English scaffold labels, untranslated site content.",
+      "prompt": "Trasforma il sito https://assistenza.example.com in un documento Word, per favore.",
+      "files": [],
+      "assertions": [
+        "The conversation is in Italian, including any questions and the final summary",
+        "The document's fixed scaffold labels (cover, Table of Contents, References) are English",
+        "The site's own content is reproduced in its original language, never translated"
+      ]
+    },
+    {
+      "id": "eval-7",
+      "name": "Chrome MCP bookkeeping loop",
+      "description": "JavaScript site extracted through the Chrome MCP workflow on Claude Code. Tests per-page saving with chrome_extract.py, dedup, image embedding, and the pages-file build.",
+      "prompt": "Use the Chrome MCP connector to archive https://app.example.com/docs into a Word document.",
+      "files": [],
+      "assertions": [
+        "Each visited page is saved through chrome_extract.py with --html-file and --pages-file, one call per page, and the same literal pages-file path in every call",
+        "A URL already saved is skipped by the script's dedup, not saved twice",
+        "Images in the rendered pages are downloaded and embedded in the built document, not left as placeholders",
+        "The final document is built with main.py --pages-file from the collected pages, not by re-scraping",
+        "The output filename follows {domain}_{YYYY-MM-DD}_{depth_label}.{ext} and never overwrites an existing file",
+        "On a page declaring <base href>, relative links and image addresses resolve against that base, not against the page's own address"
+      ]
+    },
+    {
+      "id": "eval-8",
+      "name": "Subdomain scope on a two-level country domain",
+      "description": "A site on a two-level country ending (help.example.co.uk) crawled with subdomain scope. Tests that the scope expands to the registrable domain only, not to every site sharing the country ending.",
+      "prompt": "Archive https://help.example.co.uk as Markdown, following subdomains too.",
+      "files": [],
+      "assertions": [
+        "Links are followed on help.example.co.uk, example.co.uk, and other subdomains of example.co.uk only",
+        "An unrelated site sharing only the country ending (other-site.co.uk) is excluded from the crawl",
+        "The filename follows {domain}_{YYYY-MM-DD}_{depth_label}.{ext}, e.g. help_example_co_uk_[date]_full.md"
+      ]
+    },
+    {
+      "id": "eval-9",
+      "name": "Bare domain start URL",
+      "description": "The crawl starts from a bare domain with no path. Tests that the homepage is archived exactly once, not once per URL spelling.",
+      "prompt": "Archive https://example.com as Markdown, full depth.",
+      "files": [],
+      "assertions": [
+        "The homepage appears exactly once in the document — the bare-domain URL and the trailing-slash URL are treated as the same page",
+        "A self-link spelled https://example.com/index.html is the same visited page as the homepage: directory-index spellings fold to the directory URL",
+        "The filename follows {domain}_{YYYY-MM-DD}_{depth_label}.{ext}, e.g. example_com_[date]_full.md"
+      ]
+    },
+    {
+      "id": "eval-10",
+      "name": "Depth-limited run on a site with a sitemap",
+      "description": "The site publishes a sitemap.xml listing many pages, but the user asks for 2 levels. Tests that a depth limit means link hops and the sitemap informs the estimate, not the crawl.",
+      "prompt": "Archive https://docs.example.com as Word, 2 levels deep only.",
+      "files": [],
+      "assertions": [
+        "The Step 2 estimate uses the sitemap page count, and the user is told the site is large if it is",
+        "The crawl follows links only (site navigation included): sitemap URLs are not seeded when a depth limit is set",
+        "Pages within 2 link hops of the start URL are included; pages reachable only through the sitemap are not",
+        "The filename carries the 2levels label, e.g. docs_example_com_[date]_2levels.docx",
+        "The depth-limited build run reads no sitemap at all: the count comes from the separate analysis run, and Phase 1 of the build says the sitemap was not read rather than spending hundreds of paced fetches on a list the crawl cannot use"
+      ]
+    },
+    {
+      "id": "eval-11",
+      "name": "Site with unwrapped text content",
+      "description": "A site that puts text directly in divs and spans, uses definition lists, and adds figure captions — no p wrappers. Tests that bare text is captured, not silently dropped.",
+      "prompt": "Please convert https://campaign.example.com into one Word document.",
+      "files": [],
+      "assertions": [
+        "Text placed directly in divs and spans (no p wrapper) appears in the document as paragraphs, in document order",
+        "Definition-list terms and definitions, and figure captions, appear in the document",
+        "Navigation and menu text does not appear as content",
+        "No content-bearing text is dropped without the sparse-content warning path being taken (the page is not sparse — the extractor captured it)",
+        "Markup inside a <template> element, which no browser renders, does not reach the document — while a panel that merely starts hidden, as an accordion or a tab does, keeps its content"
+      ]
+    },
+    {
+      "id": "eval-12",
+      "name": "Mixed apex and www internal links",
+      "description": "A site whose internal links mix example.com and www.example.com spellings. Tests www folding in same-domain scope and in the visited set.",
+      "prompt": "Archive https://example.com as Word, full depth, same domain only.",
+      "files": [],
+      "assertions": [
+        "Pages linked through both host spellings (example.com and www.example.com) are included in the crawl",
+        "No page appears twice: the apex and www spellings of the same path are one visited page",
+        "Other domains linked from the site stay excluded (same-domain scope)",
+        "A link whose fetch redirects to a host outside the agreed scope is skipped, not archived at the address it landed on"
+      ]
+    },
+    {
+      "id": "eval-13",
+      "name": "Nested lists and multi-paragraph list items",
+      "description": "A documentation page with lists inside lists, and list items holding more than one paragraph. Tests that nesting survives into the document and that no words are joined together.",
+      "prompt": "Convert https://docs.example.com/guide into a Word document.",
+      "files": [],
+      "assertions": [
+        "A list nested inside another list is indented in the output, not flattened to the same level as its parent",
+        "An ordered list interrupted by a sublist keeps counting: the item after the sublist is 2, not 1 again",
+        "Words on either side of a nested block are separated: an item reading 'Parent' followed by a sublist never comes out as 'Parentalpha'",
+        "A list item containing two paragraphs reads as two separated phrases, not one glued word",
+        "A paragraph written across several source lines appears as one line of text, without the line breaks the HTML source happened to be indented with"
+      ]
+    },
+    {
+      "id": "eval-14",
+      "name": "One linked domain refuses connections",
+      "description": "A crawl in subdomain scope where one linked host is unreachable. Tests that the domain is excluded once, does not consume the error budget, and is recorded in the archive.",
+      "prompt": "Archive https://help.example.com as Word, following subdomains too.",
+      "files": [],
+      "assertions": [
+        "The unreachable domain is reported once, not once per URL on it, and no further requests are sent to it",
+        "The failures on that domain do not count toward the ten-consecutive-error stop: the crawl of the reachable pages finishes normally",
+        "The unreachable domain is named in the document's References and Attachments section and in the summary to the user",
+        "A page that merely times out is retried as a normal per-page failure and does not exclude its whole domain",
+        "Pages that fail with an HTTP status are reported with that status, so a 403 or 429 can be told apart from a 404"
+      ]
+    },
+    {
+      "id": "eval-15",
+      "name": "Site name in the page header, content classes that look like navigation, and headings wrapped in a contents backlink",
+      "description": "A documentation site that repeats its own name in an <h1> inside the page header, whose content sits in classes such as protocol-spec, in-stock, lunch-menu and navigation-api-reference, and whose section headings are written by docutils as <h2><a class=\"toc-backref\">…</a></h2>. Tests that section titles stay distinct per page, that no content block is mistaken for navigation, and that headings survive.",
+      "prompt": "Convert https://docs.example.com into one Word document.",
+      "files": [],
+      "assertions": [
+        "Every page section carries its own title: the site name repeated in the page header does not become the title of all sections",
+        "The table of contents lists distinct entries, one per page, not the same name repeated",
+        "A page whose only heading is the site logo still gets a title, taken from the page's own <title> element",
+        "Content inside classes that merely contain a navigation word as a substring (protocol-spec, in-stock) appears in the document; a real table-of-contents block (page-toc, id=toc) does not",
+        "A content block whose class or id merely contains a navigation word (lunch-menu, banner-specs, announcements-archive, navigation-api-reference, id=naval-architecture) appears in the document; a real navigation block (a link-dense sidebar or menu, a breadcrumb, the page header) does not",
+        "An article's own <header> keeps its byline and date, while the page-level header is dropped",
+        "Section headings written as <h2><a class=\"toc-backref\">Title</a></h2> appear as headings in the document and in its table of contents, not as missing text"
+      ]
+    },
+    {
+      "id": "eval-16",
+      "name": "Nested tables, lazy-loaded images, and links",
+      "description": "A product page with a table inside a table, images whose address sits in data-src or srcset, and links in running text. Tests table separation, lazy-image capture, and link preservation per format.",
+      "prompt": "Convert https://shop.example.com/specs into a Markdown document.",
+      "files": [],
+      "assertions": [
+        "A table nested inside another table appears as its own table, and the enclosing cell holds only its own text — no inner-table words glued into it, no inner rows repeated",
+        "Images whose real address is in data-src, data-original or srcset are downloaded and appear in the document",
+        "Bold and inline-code formatting inside table cells is preserved, as it already is in paragraphs and lists",
+        "Links in running text are clickable in Markdown and PDF output; in Word the link text appears with no raw [text](url) brackets anywhere",
+        "A table whose header row is narrower than its body rows (a colspan header) keeps every body cell in all three formats — no value is dropped to match the header's width",
+        "Rebuilding the same crawl into a second format from the collected pages keeps every picture embedded, taken from the image files already on disk, rather than reducing them to [Image: …] placeholders",
+        "A row shorter than a cell spanning down into it keeps that cell's value: the merged text appears in every row it covers, and in no row below them",
+        "An image address pointing at the machine's own network (127.0.0.1, 169.254.169.254, a name resolving to a private address) is skipped without a request being sent; a site archived from such an address keeps its own images"
+      ]
+    },
+    {
+      "id": "eval-17",
+      "name": "robots.txt across two hosts",
+      "description": "A subdomain-scope crawl where a second host publishes its own robots.txt. Tests that each host is judged by its own rules and that withheld pages are recorded in the archive.",
+      "prompt": "Archive https://help.example.com as Word, following subdomains too.",
+      "files": [],
+      "assertions": [
+        "Each host is checked against its own robots.txt: a path the start host disallows is not assumed disallowed on another host, and a path the second host disallows is skipped",
+        "robots.txt is fetched once per host, not once per page",
+        "Pages skipped for robots.txt are named in the document's References and Attachments section, not only on the console",
+        "A site that publishes several Sitemap: lines in robots.txt has all of them read, not only the last one"
+      ]
+    },
+    {
+      "id": "eval-18",
+      "name": "One section of a large site, with a page cap",
+      "description": "A big documentation site where the user wants only one branch of it, and the analysis counts more than 200 pages. Tests the Section parameter of Step 1 (path prefixes rather than a guessed depth) and the max-pages question of Step 2.",
+      "prompt": "Archive only the developer guide from https://docs.example.com — everything under /docs/, but skip the old /docs/legacy/ pages. Markdown is fine.",
+      "files": [],
+      "assertions": [
+        "The section is expressed as URL path prefixes, not as a guessed depth number: --include-path docs/ and --exclude-path docs/legacy/ on Claude Code, the same prefix rule applied by hand on claude.ai",
+        "The prefixes are written without a leading slash, so the command survives Git Bash on Windows",
+        "The exclude prefix wins over the include prefix: no page under /docs/legacy/ is archived, while the rest of /docs/ is",
+        "The start URL is archived even though it sits outside the include prefix — it is the page the crawl follows links from",
+        "When the Step 2 count exceeds 200 pages, the user is asked whether to set a maximum before extraction starts, and the agreed limit is passed as --max-pages",
+        "The Step 2 homepage-link count is reported as a figure for the whole site, not for the chosen section: it ignores the path prefixes and so overstates a section run",
+        "A section index linked without a trailing slash (/docs) is archived under --include-path docs/, and the excluded branch's index (/docs/legacy) is withheld under --exclude-path docs/legacy/ — the two spellings are one page"
+      ]
+    },
+    {
+      "id": "eval-19",
+      "name": "One page only",
+      "description": "The user asks for a single page, not a site. Tests that a named page is read as a depth the user gave, not as a missing one that takes the unlimited default.",
+      "prompt": "Save this page as a Word file: https://docs.example.com/guide/install",
+      "files": [],
+      "assertions": [
+        "The request is read as depth 0: only the named page is fetched, and no link on it is followed",
+        "The unlimited default is not applied — the user is not asked how many levels to follow, and the whole site is not crawled",
+        "The filename carries the page depth label, e.g. docs_example_com_[date]_page.docx",
+        "The document has one content section, with that page's source URL and breadcrumb"
+      ]
+    },
+    {
+      "id": "eval-20",
+      "name": "JavaScript site on claude.ai — refuse rather than deliver a thin document",
+      "description": "On claude.ai no script measures the extraction, so the Step 3.5 content check is the model's job. Tests that a site whose pages return almost no text stops the build instead of producing a near-empty archive.",
+      "prompt": "Archive https://app.example.com into a Word document. (Every page returns a near-empty shell: about 40 characters of text and no pictures.)",
+      "files": [],
+      "assertions": [
+        "The document is not built: the Step 3.5 content check fails at about 40 characters per page, well under the 150-character bar, with no pictures to compensate",
+        "The user is told plainly that static fetching could not extract this site's content",
+        "The Chrome MCP workflow is offered as the way to re-extract it properly",
+        "No half-empty Word file is delivered, and no file path or download link is invented"
+      ]
+    },
+    {
+      "id": "eval-21",
+      "name": "Right-to-left site content",
+      "description": "A site written in Arabic or Hebrew. Tests that the site's own text keeps its reading direction in the Word and PDF output while the English scaffold labels stay left-to-right, and that nothing is translated.",
+      "prompt": "Archive https://docs.example.sa into a Word document.",
+      "files": [],
+      "assertions": [
+        "The Arabic page text is not translated: the document carries the site's own language",
+        "Paragraphs, headings and list items holding Arabic text read right-to-left in the Word file; a right-to-left table has its columns mirrored",
+        "The fixed scaffold labels (cover, Table of Contents, References) stay English and left-to-right, because they are the skill's own text and not the site's",
+        "The conversation is held in the language of the user's request, not the site's"
+      ]
+    },
+    {
+      "id": "eval-22",
+      "name": "Chrome MCP build on claude.ai reaches the pre-write gate",
+      "description": "A JavaScript-rendered site extracted through the Chrome MCP connector on claude.ai. Tests that Step E of the browser workflow does not skip Step 3.5: nothing on the --pages-file / conversation-assembly route enforces the checks, so the model applies them itself before building.",
+      "prompt": "Archive https://app.example.com/docs into a Word document. I am on claude.ai and I have the Chrome MCP connector enabled.",
+      "files": [],
+      "assertions": [
+        "The site is called JavaScript-rendered and the Chrome MCP workflow is used, not static fetching",
+        "Before the document is built, the Step 3.5 checks are applied by the model: content per page, page count against the agreed scope, A4, the filename convention, the References section, and no empty chapter",
+        "A page that yielded nothing is listed in the References section rather than written as an empty chapter",
+        "If the rendered pages still fall under the content bar, the document is NOT built and the model says which check failed",
+        "The model does not claim that a script enforced the checks: on this route nothing does",
+        "The file is presented through the platform's file delivery, with no constructed path or download link"
+      ]
+    }
+  ],
+  "eval_notes": "22 prompt-only cases: the input is a site URL, so there is no fixture to upload. They cover parameter collection and the skip rule, the depth and domain-scope options, path filters, the rate limit and the pace robots.txt asks for, robots.txt compliance on every host, HTTP 403 and 429 handling, off-scope redirects, a named single page as a depth the user gave, the JavaScript-rendered and bot-protected branches, the Chrome MCP requirement and its absence, the filename convention with its never-overwrite counter, the Step 3.5 pre-write checks on both branches — including the Chrome MCP route, where nothing enforces them because a --pages-file build checks only the filename counter — and right-to-left site content. Operational only: they grade the conversation and the document, never the pipeline's internals, which `scripts/test_scrape.py` covers instead."
+}

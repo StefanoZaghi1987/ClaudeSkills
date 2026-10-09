@@ -1,0 +1,360 @@
+{
+  "skill_name": "technical-translation",
+  "evals": [
+    {
+      "id": "eval-1",
+      "name": "Default configuration question - No preferences given",
+      "description": "Italian prompt, manual attached, neither target language nor format specified. Tests the single combined configuration question and the defaults.",
+      "prompt": "Ti allego il manuale della MP-200. Puoi tradurlo?",
+      "files": [
+        "evals/sample-manual-it.md"
+      ],
+      "assertions": [
+        "A message reporting document size and processing strategy appears before any question, in the language of the user's request",
+        "Exactly ONE message asks for target language, output format, and optional special requirements together, before any translation",
+        "The configuration question is written in Italian, the language of the user's request",
+        "Defaults are stated in the question (English, Word .docx)",
+        "After any answer, translation runs with no further questions",
+        "Filename follows [original_filename]_[language_code].[ext] with ISO 639-1 lowercase code (sample-manual-it_en.docx)"
+      ]
+    },
+    {
+      "id": "eval-2",
+      "name": "Skip rule and German PDF - Full preferences given",
+      "description": "User states language and format (German, PDF). Tests the skip rule, target-language decimal separator, standard signal words, and the A4 fallback for a source with no page geometry.",
+      "prompt": "Traduci questo manuale in tedesco come PDF.",
+      "files": [
+        "evals/sample-manual-it.md"
+      ],
+      "assertions": [
+        "No configuration question is asked; translation starts immediately",
+        "The output is a PDF in German",
+        "Filename is sample-manual-it_de.pdf (ISO 639-1 lowercase, no date)",
+        "Decimal separator stays the comma, per German convention (50 ± 0,05 mm stays 50 ± 0,05 mm, unit names translated)",
+        "Safety signal words are German standard equivalents with the four-level hierarchy preserved - not the English words, and no invented terminology",
+        "Page size is A4, the fallback for a source that defines no page geometry (the Markdown input defines none)"
+      ]
+    },
+    {
+      "id": "eval-3",
+      "name": "Partial preferences - Language only",
+      "description": "User states target language (English) but not format. Tests that only the missing question is asked, and the English decimal-comma conversion.",
+      "prompt": "Translate this manual to English.",
+      "files": [
+        "evals/sample-manual-it.md"
+      ],
+      "assertions": [
+        "Exactly one message asks only for the missing information (output format); language is not asked again",
+        "Output is sample-manual-it_en.docx after the answer",
+        "PERICOLO translates to DANGER",
+        "The equipment-damage ATTENZIONE translates to NOTICE, never CAUTION",
+        "Decimal comma converts to period for English: 50 ± 0,05 mm becomes 50 ± 0.05 mm",
+        "EN 60204-1 and ISO 13849-1 are kept exactly as written",
+        "No unit or value conversion: 6 bar stays 6 bar, 350 kg stays 350 kg, ranges unchanged"
+      ]
+    },
+    {
+      "id": "eval-4",
+      "name": "Markdown honesty",
+      "description": "User asks for Markdown output. Tests structure preservation and honest framing of what Markdown cannot preserve.",
+      "prompt": "Traduci in inglese, formato Markdown.",
+      "files": [
+        "evals/sample-manual-it.md"
+      ],
+      "assertions": [
+        "No configuration question (language and format both stated)",
+        "Output is sample-manual-it_en.md",
+        "Headings, the specs table, numbered lists, and all safety warnings are present as Markdown structure",
+        "The skill does not claim visual formatting preservation for Markdown (structure only)",
+        "The completion block reports the technical-terms count and reports no page count"
+      ]
+    },
+    {
+      "id": "eval-5",
+      "name": "Unsupported format flagged at configuration",
+      "description": "User requests an unsupported format (Excel). Tests that refusal happens in the configuration step, not at delivery.",
+      "prompt": "Translate this manual to English as an Excel file.",
+      "files": [
+        "evals/sample-manual-it.md"
+      ],
+      "assertions": [
+        "The skill says the format is not supported in the configuration step, before translating",
+        "Markdown is offered as the alternative",
+        "The skill waits for a supported choice; no file is generated before it"
+      ]
+    },
+    {
+      "id": "eval-6",
+      "name": "Pasted text entry",
+      "description": "Italian troubleshooting document pasted inline, no attachment. Tests the pasted-text entry path and acronym handling.",
+      "prompt": "Ciao! Devo far capire questa procedura ai tecnici inglesi, te la incollo qui: [full text of sample-troubleshooting-it.md pasted into the message]. Traducila in inglese in Word.",
+      "files": [
+        "evals/sample-troubleshooting-it.md"
+      ],
+      "assertions": [
+        "No request to upload a file; the pasted text is used directly",
+        "The configuration question is not asked (language and format both stated)",
+        "Filename is derived from the document title (Specifiche_tecniche_e_risoluzione_guasti_Linea_di_riempimento_RF-10_en.docx or an equivalent title-derived name)",
+        "'controllore logico programmabile (PLC)' is expanded on first use and 'PLC' stays consistent thereafter",
+        "The cross-reference 'rif. paragrafo 4.2' is rendered accurately (e.g. 'see section 4.2') and section 4.2 exists in the output",
+        "AVVERTENZA (hot surfaces) translates to WARNING with the temperature unchanged (120 °C)",
+        "6.000 bottiglie/ora becomes 6,000 bottles/hour for English (thousands separator follows the target language, digits unchanged)"
+      ]
+    },
+    {
+      "id": "eval-7",
+      "name": "URL entry",
+      "description": "User provides a URL instead of a document. Tests the fetch-or-ask branch with no fabricated content.",
+      "prompt": "Traduci in inglese il manuale che trovi su questa pagina: https://www.example.com/manuale-rf10",
+      "files": [],
+      "assertions": [
+        "If the environment can retrieve the URL, translation proceeds from the retrieved content",
+        "If it cannot, the skill asks the user to paste the text or upload the file",
+        "No translation content is fabricated in either branch"
+      ]
+    },
+    {
+      "id": "eval-8",
+      "name": "Safety hierarchy - Signal word mapping",
+      "description": "English Word translation of the manual sample. Tests the full four-level signal-word mapping on the trap case.",
+      "prompt": "Traduci in inglese, Word.",
+      "files": [
+        "evals/sample-manual-it.md"
+      ],
+      "assertions": [
+        "PERICOLO (electrical hazard) translates to DANGER with the hazard, consequence, and avoidance all present",
+        "The crushing-risk ATTENZIONE (personal injury) translates to CAUTION",
+        "The equipment-damage ATTENZIONE (torque limit, no injury risk) translates to NOTICE, not CAUTION",
+        "The informational NOTA (maintenance log) translates to NOTICE",
+        "Severity is never weakened and protective measures stay in imperative mood ('disconnect', 'apply the lock')",
+        "The four-level hierarchy DANGER > WARNING > CAUTION > NOTICE is respected throughout",
+        "The cross-reference to chapter 5 in the emergency-stop section points to a chapter that exists in the output (the rearm procedure)"
+      ]
+    },
+    {
+      "id": "eval-9",
+      "name": "Filename and revision rules",
+      "description": "Multi-step session: English translation exists, then French requested, then English redone. Tests filename uniqueness and the revision suffix.",
+      "prompt": "Step 1: Traduci in inglese in Word. Step 2 (after the English file exists): ora traducilo anche in francese. Step 3 (after the French file exists): rifai la traduzione inglese, ho corretto il capitolo 4.",
+      "files": [
+        "evals/sample-manual-it.md"
+      ],
+      "assertions": [
+        "French output is sample-manual-it_fr.docx, distinct from the English sample-manual-it_en.docx",
+        "French signal words map by severity: PERICOLO to DANGER, AVVERTENZA to AVERTISSEMENT, the crushing-risk ATTENZIONE to ATTENTION, and the property-damage ATTENZIONE and NOTA to AVIS",
+        "The French output uses a space as thousands separator: 1.500 pallet/ora becomes 1 500 (digits unchanged)",
+        "The second English translation appends _v2 (sample-manual-it_en_v2.docx) and does not overwrite the existing file",
+        "No filename in the session contains a date"
+      ]
+    },
+    {
+      "id": "eval-10",
+      "name": "No document provided",
+      "description": "Translation request with no document, no text, no URL. Tests the entry gate.",
+      "prompt": "Ciao, puoi tradurre un manuale per me?",
+      "files": [],
+      "assertions": [
+        "The FIRST message asks for the document (upload, paste, or URL), in Italian",
+        "No configuration question and no translation happen before a document arrives"
+      ]
+    },
+    {
+      "id": "eval-11",
+      "name": "Ambiguous term handled without interrupting the run",
+      "description": "Italian maintenance card containing 'pignone', ambiguous between sprocket and pinion because the transmission type is never stated. Tests the non-blocking ambiguity path: proceed with the most likely meaning, disclose in the completion message, never interrupt the run.",
+      "prompt": "Traduci in inglese in Word.",
+      "files": [
+        "evals/sample-ambiguous-it.md"
+      ],
+      "assertions": [
+        "No question of any kind between the start and the completed translation (language and format are both stated)",
+        "'pignone' is translated with one consistent most-likely meaning in both sections (sprocket or pinion)",
+        "The completion message lists 'pignone' among ambiguous terms, with the meaning chosen",
+        "The ambiguity does NOT take the Critical Errors path (it is not safety-critical)",
+        "25 ± 0,5 Nm becomes 25 ± 0.5 Nm for English, digits otherwise unchanged",
+        "NOTA translates to NOTICE; filename is sample-ambiguous-it_en.docx"
+      ]
+    },
+    {
+      "id": "eval-12",
+      "name": "Scanned image-only PDF - no extractable text",
+      "description": "User attaches a scanned, image-only PDF. Tests the Phase 1 say-so-and-ask branch: no text extracted, nothing translated or fabricated, user asked for a readable version.",
+      "prompt": "Ti allego la scansione del manuale della MP-200 (PDF scansionato, solo immagini). Traducilo in inglese in Word.",
+      "files": [],
+      "assertions": [
+        "The skill states that the PDF is scanned (image-only) and no text can be extracted from it",
+        "The skill asks the user for a text version or a different file, and waits",
+        "No configuration question is asked and no translation is produced before a readable document arrives",
+        "No content is fabricated or guessed from the page images"
+      ]
+    },
+    {
+      "id": "eval-13",
+      "name": "Non-Italian source - German manual to English",
+      "description": "German source document translated to English as Word. Tests that the workflow runs unchanged for a non-Italian source, the Italian references are not applied, and signal words map by severity level.",
+      "prompt": "Please translate this German manual to English as a Word document.",
+      "files": [
+        "evals/sample-manual-de.md"
+      ],
+      "assertions": [
+        "No configuration question is asked (language and format both stated)",
+        "GEFAHR, WARNUNG, VORSICHT and HINWEIS translate to DANGER, WARNING, CAUTION and NOTICE, mapped by severity level with the four-level hierarchy preserved",
+        "No Italian appears in the output and no Italian reference mapping is applied (the source is German)",
+        "Decimal comma converts to period for English: 5,0 bis 25 m/min becomes 5.0 to 25 m/min",
+        "EN 60204-1, 6 bar, 120 °C and 85 kg are kept exactly (no unit or value conversion)",
+        "Filename is sample-manual-de_en.docx"
+      ]
+    },
+    {
+      "id": "eval-14",
+      "name": "Non-standard signal word placed by severity",
+      "description": "Italian service card where AVVISO is used at two different severities: electric shock (personal injury) and overtorque damage. Tests that a signal word outside the standard set is placed by hazard severity, never demoted to NOTICE by its word form.",
+      "prompt": "Traduci in inglese in Word.",
+      "files": [
+        "evals/sample-avviso-it.md"
+      ],
+      "assertions": [
+        "No question of any kind between the start and the completed translation (language and format are both stated)",
+        "The electric-shock AVVISO translates to WARNING, not NOTICE - placed by the severity of the hazard",
+        "The overtorque AVVISO translates to NOTICE (property damage, no injury risk)",
+        "The electric-shock warning keeps its imperative instructions; 230 V and 40 Nm stay unchanged",
+        "Filename is sample-avviso-it_en.docx"
+      ]
+    },
+    {
+      "id": "eval-15",
+      "name": "Reverse direction - English manual to Italian",
+      "description": "English source document translated to Italian as Word. Tests the reverse path: the Italian terminology reference is not applied for a non-Italian source, signal words map by severity into Italian, and the number format converts to the Italian convention.",
+      "prompt": "Traduci questa scheda in italiano, in Word.",
+      "files": [
+        "evals/sample-manual-en.md"
+      ],
+      "assertions": [
+        "No configuration question is asked (language and format both stated)",
+        "DANGER, WARNING, CAUTION and NOTICE become PERICOLO, AVVERTENZA, ATTENZIONE and NOTA, mapped by severity level",
+        "The Italian terminology reference is not applied to build the terminology database (the source is English)",
+        "Decimal point converts to comma for Italian: 25 ± 0.5 Nm becomes 25 ± 0,5 Nm; thousands separator converts to period: 6,000 becomes 6.000 (digits unchanged)",
+        "EN 60204-1, 16 A, 400 V stay exactly as written; 12 March becomes 12 marzo",
+        "Filename is sample-manual-en_it.docx"
+      ]
+    },
+    {
+      "id": "eval-16",
+      "name": "Multi-target request - two languages in one run",
+      "description": "User requests English and German in one message. Tests the multi-target rule: one file per language in a single run, no repeated configuration.",
+      "prompt": "Traduci in inglese e tedesco in Word.",
+      "files": [
+        "evals/sample-manual-it.md"
+      ],
+      "assertions": [
+        "No configuration question is asked (languages and format both stated)",
+        "Two files are produced in the one run: sample-manual-it_en.docx and sample-manual-it_de.docx",
+        "The English translation uses the English standard signal words (DANGER, WARNING, CAUTION, NOTICE); the German one uses the German set (GEFAHR, WARNUNG, VORSICHT, HINWEIS)"
+      ]
+    },
+    {
+      "id": "eval-17",
+      "name": "Portuguese target - signal words and number format",
+      "description": "Italian manual translated to Portuguese as Word. Tests the fourth named target option: ISO 3864-2 Portuguese signal words mapped by severity (including the ATENÇÃO-is-graded contrast with Spanish), the Portuguese number convention, and the _pt filename.",
+      "prompt": "Traduci in portoghese in Word.",
+      "files": [
+        "evals/sample-manual-it.md"
+      ],
+      "assertions": [
+        "No configuration question is asked (language and format both stated)",
+        "Signal words map by severity: PERICOLO to PERIGO, AVVERTENZA to AVISO, the crushing-risk ATTENZIONE to ATENÇÃO (the graded CAUTION word, unlike Spanish ATENCIÓN), and the property-damage ATTENZIONE and NOTA to NOTA",
+        "The four-level hierarchy PERIGO > AVISO > ATENÇÃO > NOTA is respected throughout",
+        "Decimal separator stays the comma, per Portuguese convention (50 ± 0,05 mm stays 50 ± 0,05 mm, unit names translated)",
+        "EN 60204-1 and ISO 13849-1 are kept exactly as written; 6 bar, 350 kg stay unchanged",
+        "Filename is sample-manual-it_pt.docx"
+      ]
+    },
+    {
+      "id": "eval-18",
+      "name": "Glossary file intake - user terms override defaults",
+      "description": "Italian manual plus a company glossary CSV attached alongside. Tests the Phase 4 glossary rule: the glossary merges into the terminology database before translating, user-supplied terms override the industry-standard defaults, and consistency holds.",
+      "prompt": "Ti allego il manuale della MP-200 e il nostro glossario aziendale. Traducilo in inglese in Word.",
+      "files": [
+        "evals/sample-manual-it.md",
+        "evals/sample-glossary.csv"
+      ],
+      "assertions": [
+        "No configuration question is asked (language and format both stated)",
+        "The glossary overrides the default mapping: 'quadro elettrico' translates to 'electrical cabinet', not the industry-default 'control panel', at every occurrence",
+        "'zona di movimentazione dei pallet' translates to the glossary term 'pallet transfer area', used consistently",
+        "All other terms follow the industry-standard mappings; PERICOLO still translates to DANGER (a glossary never touches signal words)",
+        "Filename is sample-manual-it_en.docx (the glossary file does not affect the naming rule)",
+        "The completion message reports the merged terminology count"
+      ]
+    },
+    {
+      "id": "eval-19",
+      "name": "RTL target - Hebrew PDF",
+      "description": "Italian manual translated to Hebrew as PDF. Tests the right-to-left guard: weasyprint stays the PDF builder for an RTL target and the fpdf2 fallback is off, signal words map by severity, and degradation is honest rather than silent.",
+      "prompt": "Traduci questo manuale in ebraico, come PDF.",
+      "files": [
+        "evals/sample-manual-it.md"
+      ],
+      "assertions": [
+        "No configuration question is asked (language and format both stated)",
+        "Filename is sample-manual-it_he.pdf (ISO 639-1 lowercase he)",
+        "When building locally, the PDF is produced with weasyprint; the fpdf2 fallback is never used for a right-to-left target - if weasyprint is unavailable, the skill asks the user (install it, or take Markdown) instead of degrading silently",
+        "Signal words map by severity level into Hebrew's standard signal words; the four-level hierarchy is preserved",
+        "EN 60204-1, ISO 13849-1, 6 bar and 350 kg are kept exactly; the decimal comma converts to the period per Hebrew convention (50 ± 0,05 mm becomes 50 ± 0.05 mm), digits otherwise unchanged",
+        "Page size is A4 (the Markdown source defines no page geometry)"
+      ]
+    },
+    {
+      "id": "eval-20",
+      "name": "Glossary given in the configuration answer",
+      "description": "Multi-turn: Italian manual attached, nothing stated in the first message; the user's answer to the configuration question carries one term preference. Tests the Phase 4 rule that a glossary from the answers merges into the terminology database and overrides the industry defaults.",
+      "prompt": "Step 1: Ti allego il manuale della MP-200. Step 2 (as the reply to the configuration question): Inglese, Word, e usa 'quadro elettrico' per 'electrical cabinet'.",
+      "files": [
+        "evals/sample-manual-it.md"
+      ],
+      "assertions": [
+        "Exactly ONE message asks for target language, output format, and optional special requirements together, before any translation",
+        "A message reporting document size and processing strategy appears before the question, in the language of the user's request",
+        "The term from the answer overrides the default: 'quadro elettrico' translates to 'electrical cabinet', not the industry-default 'control panel', at every occurrence",
+        "PERICOLO still translates to DANGER (a glossary never touches signal words)",
+        "After the answer, no further question is asked and the file is produced",
+        "Filename is sample-manual-it_en.docx and the completion message reports the merged terminology count"
+      ]
+    },
+    {
+      "id": "eval-21",
+      "name": "RTL Word output - Hebrew target",
+      "description": "Italian manual translated to Hebrew as Word. Tests the Word side of the right-to-left rule: paragraph direction set in the output file, signal words mapped by severity, and the number convention. Complements case 19, which tests the PDF side.",
+      "prompt": "Traduci questo manuale in ebraico, in Word.",
+      "files": [
+        "evals/sample-manual-it.md"
+      ],
+      "assertions": [
+        "No configuration question is asked (language and format both stated)",
+        "Filename is sample-manual-it_he.docx (ISO 639-1 lowercase he)",
+        "Hebrew paragraphs in the Word file carry right-to-left direction",
+        "Signal words map by severity level into Hebrew's standard signal words; the four-level hierarchy is preserved",
+        "EN 60204-1, ISO 13849-1, 6 bar and 350 kg are kept exactly; the decimal comma converts to the period per Hebrew convention (50 ± 0,05 mm becomes 50 ± 0.05 mm), digits otherwise unchanged",
+        "Signed numeric runs such as 50 ± 0.05 mm read left-to-right inside the RTL paragraphs, with the sign attached to its value (not mirrored or detached)",
+        "Page size is A4 (the Markdown source defines no page geometry)"
+      ]
+    },
+    {
+      "id": "eval-22",
+      "name": "Multi-source request - two documents in one run",
+      "description": "Two source documents attached in one message, target language and format stated for both. Tests the Phase 1 multi-source rule: each document runs through the workflow and gets its own deliverable, with one configuration pass and per-document language handling.",
+      "prompt": "Ti allego il manuale della MP-200 e quello dell'ETL-40. Traducili entrambi in inglese in Word.",
+      "files": [
+        "evals/sample-manual-it.md",
+        "evals/sample-manual-de.md"
+      ],
+      "assertions": [
+        "No configuration question is asked (language and format both stated)",
+        "Two files are produced in the one run: sample-manual-it_en.docx and sample-manual-de_en.docx",
+        "Signal words map by severity in each output: PERICOLO to DANGER in the MP-200 output, GEFAHR to DANGER in the ETL-40 output",
+        "The Italian references apply only to the Italian source; no Italian reference mapping is applied to the German source"
+      ]
+    }
+  ],
+  "eval_notes": "All sample material is fictional: evals/sample-manual-it.md is an invented Italian operating and maintenance manual for a pallet mover (model MP-200) containing all four signal-word levels including the two ATTENZIONE trap cases; evals/sample-troubleshooting-it.md is an invented Italian specification/troubleshooting sheet for an RF-10 filling line; evals/sample-ambiguous-it.md is an invented maintenance card built around 'pignone', ambiguous between sprocket and pinion; evals/sample-manual-de.md is an invented German operating manual for an ETL-40 labeling machine (cases 13 and 22) exercising the non-Italian source path; evals/sample-avviso-it.md is an invented service card using the non-standard signal word AVVISO at two severities (case 14); evals/sample-manual-en.md is an invented English service card for a CV-15 conveyor (case 15) exercising the reverse English-to-Italian path; evals/sample-glossary.csv is an invented two-term company glossary for the MP-200 manual (case 18). Case 12 expects the runner to attach any image-only scanned PDF; the page content is irrelevant because no text may be extracted. Cases cover: defaults and the combined question (1), skip rule with German target and the A4 fallback (2), partial preferences and decimal conversion (3), Markdown honesty (4), the unsupported-format gate (5), pasted text (6), URL entry (7), the four-level signal-word mapping (8), filename and revision rules (9), missing document (10), non-blocking ambiguity disclosure (11), scanned-PDF refusal (12), non-Italian source with severity-based mapping (13), non-standard signal words placed by severity (14), the reverse English-to-Italian direction (15), multi-target single-run delivery (16), the Portuguese target with ISO 3864-2 signal words (17), glossary-file intake with user terms overriding the defaults (18), and the right-to-left Hebrew target with the weasyprint-only PDF guard (19), a glossary supplied in the configuration answer with terms overriding the defaults (20), and the Hebrew Word target with right-to-left paragraph direction (21), and the two-document multi-source request with one configuration pass and one deliverable per document (22). Every case that produces a file expects the [original_filename]_[language_code].[ext] convention from SKILL.md."
+}

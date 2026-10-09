@@ -1,0 +1,528 @@
+{
+  "skill_name": "usecase-extractor",
+  "evals": [
+    {
+      "id": "eval-1",
+      "name": "Basic extraction with defaults",
+      "description": "Single attachment, no configuration stated, request written in English. Tests the full happy path: exactly one configuration question, the language rule (an English request gives an English document) with the Word default, the complete Step 5 data model, and the pre-delivery verification gate.",
+      "prompt": "I'm uploading our requirements. Please extract the use cases.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "Exactly ONE configuration message asks for language and format together, naming the default that applies to this request (English, since the request is English) and the Word default, before any output is produced",
+        "Every use case carries Code, Name, Title, Priority, Target, Main Flow, Variations, Input Data, Output Data, Dependencies, Source, and User Story",
+        "Each of the document's three named actors carries its own unique 3-letter prefix, standard or custom, and so does the implicit system actor behind §3.8's notifications, which eval-6 also expects; numbering starts at 001 for each prefix",
+        "Dependencies use only the five declared relationship types, in the format CODE-XXX: Name (type)",
+        "The §3.1 vs §3.3 booking-window contradiction appears under Flagged Items, and the undefined no-show penalty is flagged, not silently resolved",
+        "The deliverable is a .docx named Use_Cases_sample-requirements_EN_[date].docx — the single source file's name without its extension — with A4 page size",
+        "On Claude Code the absolute file path is reported; on claude.ai the platform's file delivery presents the file in the conversation"
+      ]
+    },
+    {
+      "id": "eval-2",
+      "name": "Image-only PDF input",
+      "description": "The attachment is described as a scan with no extractable text. Tests the input-handling edge: state the problem and ask for a text version instead of guessing.",
+      "prompt": "Our requirements exist only as a scanned, image-only PDF with no selectable text. Please extract the use cases.",
+      "files": [],
+      "assertions": [
+        "The skill states plainly that no text can be extracted from the scan",
+        "It asks for a text version, a searchable PDF, or a different format",
+        "It neither refuses the task outright nor invents or guesses content"
+      ]
+    },
+    {
+      "id": "eval-3",
+      "name": "Configuration pre-answered (Excel, Italian)",
+      "description": "The first message already names language and format, and the source document is English. Tests ask-only-what-is-unanswered plus the cross-language rules: an Italian Excel deliverable built from an English source.",
+      "prompt": "Analizza i requisiti allegati ed estrai i casi d'uso. Vorrei l'output in italiano, in formato Excel.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "NO configuration question is asked: language and format were already stated in the request",
+        "The deliverable is an .xlsx named Use_Cases_sample-requirements_IT_[date].xlsx",
+        "The Use Cases sheet has the 14 columns in order: Code, Role, Name, Title, Priority, Target, Main Flow, Variations, Input Data (Mandatory), Input Data (Optional), Output Data, Dependencies, Source, User Story",
+        "User-facing messages and the document content are in Italian",
+        "Column headers, sheet names and priority values are written in Italian",
+        "Use case codes and role prefixes are unchanged by the output language (ADM-001 stays ADM-001, not AMM-001)",
+        "Source citations keep the English section wording of the source document (e.g. §3.1 Booking), untranslated",
+        "Every relationship type the workbook uses is rendered by one fixed Italian term across the whole workbook",
+        "Sheet 3 carries the matrix's three columns — Use Case, Related Use Case, Relationship Type — with the relationship-type legend under it",
+        "Sheet 4 carries four columns: Item Type, Reference, Description, Recommendation",
+        "Sheet 1 carries the Non-Functional Requirements table below the Roles Summary Table: the source's three §4 requirements as rows, each naming the use cases it constrains, with headers in Italian",
+        "Where a use case is inferred, its marker is written in Italian — e.g. (inferito) — following the output language, while the quoted section wording stays English"
+      ]
+    },
+    {
+      "id": "eval-4",
+      "name": "PDF output",
+      "description": "The user chooses PDF and states the language. Tests the PDF branch of the output step and the A4 rule.",
+      "prompt": "Extract the use cases from the attached requirements. Language: English. Format: PDF.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "No configuration question is asked: both answers were given in the request",
+        "The deliverable is a PDF with the Word-guideline structure: title page, table of contents, role sections, use-case field tables",
+        "Page size is A4",
+        "On an environment without document skills, the skill builds the PDF with weasyprint (fpdf2 fallback) rather than refusing"
+      ]
+    },
+    {
+      "id": "eval-5",
+      "name": "Very large document",
+      "description": "The source is claimed to be far beyond 100 pages. Tests sectioned processing and incremental persistence for very large documents.",
+      "prompt": "Here is our 180-page requirements specification. Extract all the use cases. Defaults are fine.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "The skill applies or offers section-based processing instead of refusing or truncating",
+        "A summary structure is built first, then detailed use cases are generated per section",
+        "Completed sections are written to the output file incrementally where the environment supports it",
+        "The final document combines all sections under one consistent numbering scheme per role"
+      ]
+    },
+    {
+      "id": "eval-6",
+      "name": "Field completeness and traceability",
+      "description": "Grades the Step 5 data model and the silent pre-delivery verification on the standard attachment with pre-answered configuration.",
+      "prompt": "Extract the use cases and user stories from the attached requirements. Give me Word, English.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "Every use case has a Priority (High/Medium/Low) and a User Story in the 'As a ..., I want ..., so that ...' format",
+        "Every use case cites its source section (e.g. Source: §3.6); inferred use cases are marked (inferred)",
+        "Every functional section of the source (§3.1 to §3.8) is cited by at least one use case's Source field, or named under Flagged Items",
+        "Main Flow is numbered, and Variations are numbered against the step they branch from (e.g. 2a.)",
+        "Executive Summary counts match the body: roles, use cases, user stories, the High/Medium/Low priority counts, and the dependency count (the number of Critical Dependencies Matrix rows)",
+        "The Critical Dependencies Matrix carries one row per listed Dependencies entry, with the same code pairs, relationship types and directions as the per-use-case lists",
+        "A field with nothing to record (for example a use case with no Variations, or no optional input data) carries the output language's word for none, rather than being omitted or filled with invented content",
+        "The pre-delivery verification runs silently: no checklist is printed into the chat",
+        "The booking-window contradiction is reported once under Flagged Items, with a suggested resolution",
+        "A system-role use case (e.g. booking notifications) has a user story naming the human role that benefits, and that role is not registered as a new actor",
+        "The §4 non-functional requirements appear in the Appendix's Non-Functional Requirements subsection, each naming the use cases it constrains",
+        "The Executive Summary's Coverage Assessment value and the confidence level reported in the chat are the same judgement, reached from the stated criteria",
+        "§3.5's add, modify and deactivate operations yield one use case each under the administrator's prefix, rather than a single use case that manages rooms",
+        "§2's statement that the Office Manager approves exceptions, which no §3 requirement defines, is either named under Flagged Items as missing information or covered by a use case marked `(inferred)` citing §2 — never silently dropped, and never given behaviour the source does not state",
+        "Step 8's follow-up questions include the decision the §3.1 vs §3.3 booking-window contradiction leaves to the user"
+      ]
+    },
+    {
+      "id": "eval-7",
+      "name": "Unsupported output format",
+      "description": "The user asks for PowerPoint, outside the supported A-E set. Tests the unsupported-format rule: say so, offer the closest supported format, and wait for a supported choice before generating.",
+      "prompt": "Extract the use cases from the attached requirements and give me a PowerPoint presentation. Language: English.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "The skill states that PowerPoint is not a supported format",
+        "It offers the closest supported format(s) (e.g. Word or PDF) and waits for a supported choice",
+        "No output file is produced before the user picks a supported format"
+      ]
+    },
+    {
+      "id": "eval-8",
+      "name": "Markdown output",
+      "description": "Language and Markdown format are both stated in the request. Tests the Markdown branch: no document skill or script needed, deliverable follows the Markdown template.",
+      "prompt": "Extract the use cases from the attached requirements. Language: English. Format: Markdown.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "No configuration question is asked: both answers were given in the request",
+        "The deliverable is a .md named Use_Cases_sample-requirements_EN_[date].md",
+        "It follows the Markdown template: metadata block, Executive Summary, role sections with all Step 5 fields, Dependencies Map, Flagged Items, Appendix",
+        "The §3.1 vs §3.3 booking-window contradiction appears under Flagged Items",
+        "No document skill or Python script is needed to produce the .md file",
+        "The Dependencies Map's High-Level Workflow Sequences chains follow only workflow sequence and triggering dependencies the use cases list, adding no arrow the Critical Dependencies Matrix does not carry"
+      ]
+    },
+    {
+      "id": "eval-9",
+      "name": "Regeneration keeps the earlier file",
+      "description": "A second run in the same session. Tests the never-overwrite rule: the new deliverable gets _v2 and the first file survives unchanged.",
+      "prompt": "Extract the use cases from the attached requirements. Language: English. Format: Word. — After the first deliverable arrives, send: Now regenerate the file, same settings.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "The second deliverable's filename carries _v2 before the extension, keeping the first deliverable's date",
+        "The earlier file is neither overwritten, renamed, nor deleted",
+        "Numbering and structure follow the same scheme as the first deliverable",
+        "The second file's metadata block prints Document Version 2.0, matching its _v2 filename"
+      ]
+    },
+    {
+      "id": "eval-10",
+      "name": "Multiple source documents",
+      "description": "Two attached requirement documents for one system. Tests multi-document handling: every Source citation names its document, the analysis spans both files, and the filename uses a combined or project name.",
+      "prompt": "Extract the use cases from our two attached requirements documents. Language: English. Format: Markdown.",
+      "files": [
+        "evals/sample-requirements.md",
+        "evals/sample-requirements-access.md"
+      ],
+      "assertions": [
+        "No configuration question is asked: both answers were stated in the request",
+        "The analysis covers both documents: roles and use cases from the addendum (e.g. Receptionist) appear alongside those from the main document",
+        "Every Source field names the document before the section (e.g. Source: sample-requirements-access.md, §A1), since there are several sources",
+        "The deliverable is a .md whose filename uses a short combined name or the project name, not a single document's name",
+        "The §3.1 vs §3.3 booking-window contradiction from the main document still appears under Flagged Items"
+      ]
+    },
+    {
+      "id": "eval-11",
+      "name": "Mixed-language run (Italian request, English document)",
+      "description": "The request is written in Italian but asks for an English document. Tests the split-language rule: chat replies follow the request's language, the document follows the selected output language.",
+      "prompt": "Analizza i requisiti allegati ed estrai i casi d'uso. Vorrei l'output in inglese, in formato Word.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "NO configuration question is asked: language and format were already stated in the request",
+        "Every user-facing message, including the completion message, is written in Italian",
+        "The document content is in English, and the deliverable is a .docx named Use_Cases_sample-requirements_EN_[date].docx"
+      ]
+    },
+    {
+      "id": "eval-12",
+      "name": "Pasted-text input",
+      "description": "Requirements arrive as pasted text with no attachment, configuration pre-answered. Tests pasted-text input handling and the filename rule for sourceless input: the project or domain name becomes [Source_Name].",
+      "prompt": "Here are our requirements as pasted text — it's for a gym class-booking system. Members must be authenticated. A member can reserve a spot in a class up to 7 days in advance, and can cancel up to 1 hour before the class starts. The system sends a confirmation email when a reservation is made and a reminder 24 hours before the class. The front desk can view the class roster and mark no-shows. No booking may be placed more than 3 days in advance. Extract the use cases. Language: English. Format: Word.",
+      "files": [],
+      "assertions": [
+        "NO configuration question is asked: language and format were already stated in the request",
+        "Pasted text is analyzed as the requirements source, with no complaint about a missing file",
+        "The deliverable is a .docx whose filename uses the project or domain name as the source name (e.g. Use_Cases_GymClassBooking_EN_[date].docx), since no source file exists",
+        "Every use case cites its source as the sentence it comes from, quoted in the pasted text's own wording, with inferred use cases marked (inferred)",
+        "The 7-day vs 3-day advance-booking contradiction appears under Flagged Items"
+      ]
+    },
+    {
+      "id": "eval-13",
+      "name": "Format recommendation",
+      "description": "The user states the language but is undecided about the format and asks for a recommendation. Tests the recommendation rule: one format recommended with a reason from the selection logic, no file before the user accepts.",
+      "prompt": "Extract the use cases from the attached requirements. Language: English. I don't know which output format is best — what do you recommend?",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "Exactly ONE format is recommended, with a reason drawn from the selection logic (e.g. Word for stakeholder-facing documentation)",
+        "The recommendation is one of the supported formats A-D",
+        "No output file is produced before the user accepts the recommendation",
+        "The configuration message does not re-ask the language, which the request already stated"
+      ]
+    },
+    {
+      "id": "eval-14",
+      "name": "Multiple formats (Word and Excel)",
+      "description": "The user asks for two formats at once. Tests option E: one deliverable per format sharing the base filename, the Excel workbook's four sheets including the Document Info block, and matching counts across files.",
+      "prompt": "Extract the use cases from the attached requirements. Language: English. Formats: Word and Excel, please.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "No configuration question is asked: language and formats were already stated",
+        "Two deliverables are produced with the same base name and different extensions: Use_Cases_sample-requirements_EN_[date].docx and Use_Cases_sample-requirements_EN_[date].xlsx",
+        "The Excel workbook has the four sheets, and Sheet 1's top carries the title row and the shared metadata block (Document Version, Analysis Date, Analyzed Document(s), Source Language(s), Output Language, Prepared By)",
+        "The Use Cases sheet has the 14 columns in order",
+        "The Word file follows the Word guidelines with A4 page size",
+        "Executive Summary counts match between the two files",
+        "The workbook's Non-Functional Requirements table and the Word file's Appendix subsection list the same non-functional requirements"
+      ]
+    },
+    {
+      "id": "eval-15",
+      "name": "Italian request, no language stated",
+      "description": "The request is written in Italian, states the format, and does not state a language. Two turns: the skill asks the language, the user declines to choose. Tests the mirror branch of the language default.",
+      "prompt": "Estrai i casi d'uso dai requisiti allegati. Formato Markdown. — After the configuration question arrives, reply: procedi.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "ONE configuration message asks the output language and nothing else, since the format was already stated",
+        "That message is written in Italian, and it names Italian as the default for an Italian request",
+        "After \"procedi\", the document content is in Italian and the deliverable is a .md named Use_Cases_sample-requirements_IT_[date].md",
+        "Headings, field labels and priority values are Italian, while use case codes and role prefixes are unchanged",
+        "Source citations keep the English section wording of the source document (e.g. §3.1 Booking)"
+      ]
+    },
+    {
+      "id": "eval-16",
+      "name": "Third-language request, no language stated",
+      "description": "The request is written in Spanish, states the format, and does not state a language. Two turns: the skill asks the language, the user declines to choose. Tests the fallback branch — neither Italian nor English was requested, so the document is Italian while the conversation stays Spanish.",
+      "prompt": "Extrae los casos de uso de los requisitos adjuntos. Formato Markdown. — After the configuration question arrives, reply: adelante.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "ONE configuration message asks the output language and nothing else, since the format was already stated",
+        "Every user-facing message, that question included, is written in Spanish",
+        "The question states that Italian applies if the user does not choose, rather than promising Spanish",
+        "After \"adelante\", the document content is in Italian and the deliverable is a .md named Use_Cases_sample-requirements_IT_[date].md"
+      ]
+    },
+    {
+      "id": "eval-17",
+      "name": "Non-requirements input (brochure)",
+      "description": "The pasted text is marketing material with no system behaviour. Tests the Source Without Requirements Content edge: say what the text is, ask for the requirements document, and extract nothing.",
+      "prompt": "Here is the text of our company brochure: 'FitClub Center is the gym for you. We offer 40 weekly classes, a modern weight room, and personal training from 35 euro per session. Open every day 7-23. New members get the first month at half price. Sign up at the front desk or on our website.' Please extract the use cases. Language: English. Format: Word.",
+      "files": [],
+      "assertions": [
+        "The skill says the text contains no requirements content and names what the text appears to be (a brochure)",
+        "It asks for the requirements document before extracting",
+        "No output file is produced and no use cases are invented"
+      ]
+    },
+    {
+      "id": "eval-18",
+      "name": "Italian source, English output",
+      "description": "The request is written in Italian and pastes a short Italian requirements text, stating an English Word deliverable. Tests the source-language rules: custom prefixes from Italian role names, Italian source citations, and vocabulary given with its translation at first use.",
+      "prompt": "Ecco i nostri requisiti, in italiano: Il sistema gestisce le manutenzioni degli impianti. Un Tecnico apre un intervento e ne registra le ore lavorate. Un Capoarea approva gli interventi chiusi. Ogni intervento approvato genera un report per il cliente. Estrai i casi d'uso. Lingua: inglese. Formato: Word.",
+      "files": [],
+      "assertions": [
+        "NO configuration question is asked: language and format were already stated in the request",
+        "Every user-facing message, including the completion message, is written in Italian, while the document content is in English",
+        "The Italian role names give custom prefixes (e.g. TEC for Tecnico), unchanged in the English document, and the legend gives each prefix its role name in English",
+        "Source citations keep the Italian wording of the pasted requirements, untranslated",
+        "The document's own vocabulary appears as the English term with the Italian source term in parentheses at first use, e.g. 'Service ticket (Intervento)'",
+        "The deliverable is a .docx whose filename uses the project or domain name as the source name, since no source file exists"
+      ]
+    },
+    {
+      "id": "eval-19",
+      "name": "Unparsable attachment (legacy .doc)",
+      "description": "The source is a legacy .doc file the platform cannot parse, described in the prompt because the file type cannot ship as a fixture. Tests the second half of the Unreadable Input edge case, and the only platform-divergent recovery in the skill: a local conversion on Claude Code, a request for another format on claude.ai.",
+      "prompt": "Our requirements exist only as a legacy Word 97 .doc file, which this platform cannot parse. Please extract the use cases. Language: English. Format: Word.",
+      "files": [],
+      "assertions": [
+        "The skill states plainly that the file's text cannot be read on this platform, naming the file type as the reason",
+        "On Claude Code it offers to convert the file locally with an available tool (for example LibreOffice) and to continue from the converted copy; on claude.ai it asks for a text version, a searchable PDF, or a different format",
+        "It neither refuses the task outright nor invents or guesses the document's content",
+        "No configuration question is asked and no deliverable is produced while the source is unreadable"
+      ]
+    },
+    {
+      "id": "eval-20",
+      "name": "Right-to-left output language",
+      "description": "The user asks for a PDF in Arabic. Tests the right-to-left branch of the output step, which contains a refusal: the fpdf2 fallback is switched off, so an unavailable weasyprint must stop and ask rather than ship unshaped text.",
+      "prompt": "Extract the use cases from the attached requirements. Language: Arabic. Format: PDF.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "No configuration question is asked: language and format were already stated in the request",
+        "On an environment without document skills, the PDF is built with weasyprint and the fpdf2 fallback is NOT used, because fpdf2 does not shape right-to-left text",
+        "If weasyprint is unavailable, the skill asks the user to install it or offers Markdown instead, rather than producing a PDF with unshaped text",
+        "Document headings, field labels and priority values are in Arabic, while use case codes and role prefixes stay Latin (ADM-001 stays ADM-001)",
+        "Source citations keep the English section wording of the source document (e.g. §3.1 Booking)",
+        "The filename carries the uppercase language code: Use_Cases_sample-requirements_AR_[date].pdf",
+        "Page size is A4",
+        "Numeric runs inside the Arabic text — use case codes such as ADM-001, main-flow step numbers, dates, signed or unit-bearing values — read left-to-right, so no code or unit breaks apart"
+      ]
+    },
+    {
+      "id": "eval-21",
+      "name": "Special requirement narrows the analysis, leaving dangling dependencies",
+      "description": "The request restricts the extraction to one role, so the natural cross-role dependencies point at codes that never enter the analysis. Tests the Step 6 existence check on dependency codes, and the Step 2 rule that a narrowing special requirement applies from the extraction onward.",
+      "prompt": "Extract the use cases from the attached requirements, but only for the Employee role — I don't need the administrator or manager side. Language: English. Format: Markdown.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "No configuration question is asked: language and format were both stated in the request",
+        "The narrowing is applied from the extraction onward, rather than as a filter over a finished catalog",
+        "Only Employee use cases appear, under a single role prefix, numbered from 001",
+        "NO Dependencies entry cites a code that is absent from the deliverable — in particular no invented administrator or manager code",
+        "The dropped cross-role relationships (for example the room catalog the bookings depend on) appear under Flagged Items as out-of-scope prerequisites, not as dependency entries",
+        "The Critical Dependencies Matrix contains only code pairs that both exist in the deliverable",
+        "The completion message names the narrowing that was applied"
+      ]
+    },
+    {
+      "id": "eval-22",
+      "name": "Source states its own priorities (MoSCoW)",
+      "description": "The pasted requirements carry the source's own MoSCoW ratings. Tests the rule that Priority follows the source instead of the model's judgement, and that a Won't-have requirement reaches Flagged Items rather than a use case. Input travels in the prompt, following the eval-12 pattern.",
+      "prompt": "Here are our requirements for a document-approval tool, with our MoSCoW ratings. Must have: a reviewer can approve or reject a submitted document, and the author is notified of the outcome. Should have: a reviewer can request changes with a comment. Could have: an author can see the full approval history of a document. Won't have this time: bulk approval of several documents at once. Extract the use cases. Language: English. Format: Markdown.",
+      "files": [],
+      "assertions": [
+        "NO configuration question is asked: language and format were already stated in the request",
+        "The approve/reject use case is High, and so is the notification use case inferred from the same Must item; the request-changes use case is Medium and the approval-history use case is Low, following the source's Must/Should/Could ratings rather than the model's own criticality judgement",
+        "Bulk approval gets no use case: it is named under Flagged Items as Missing Information, out of scope for this release",
+        "Each use case's detail level follows the priority the source gave it: a 3-5 sentence Target with 5-15 input and output items for the High approve/reject case, a 1-2 sentence Target with 2-5 items for the Low approval-history case",
+        "Only the High-priority use cases carry Acceptance Criteria; the Medium and Low ones omit the field",
+        "Each Source citation quotes the sentence it comes from in the pasted text's own wording",
+        "Where the Low-priority approval-history use case has Variations, they carry exception paths only — no alternative paths"
+      ]
+    },
+    {
+      "id": "eval-23",
+      "name": "Spreadsheet source",
+      "description": "The source is an Excel spreadsheet with requirement IDs and MoSCoW priorities. Tests the spreadsheet input path and its citation rule: every Source cites the sheet name and the requirement identifier, never a § section. Input ships as an .xlsx fixture.",
+      "prompt": "Here is our requirements spreadsheet. Extract the use cases. Language: English. Format: Markdown.",
+      "files": [
+        "evals/sample-requirements.xlsx"
+      ],
+      "assertions": [
+        "No configuration question is asked: language and format were already stated in the request",
+        "The deliverable is a .md named Use_Cases_sample-requirements_EN_[date].md — the single source file's name without its extension",
+        "Every Source cites the sheet name and the requirement identifier in the Requirements!REQ-10x form, never a § section",
+        "Priorities follow the source's MoSCoW ratings (Must have to High, Should have to Medium) rather than the model's own criticality judgement",
+        "The confirmation-email requirement yields a system-role use case whose user story names the human role that benefits, and that role is not registered as a new actor",
+        "That confirmation-email use case is on the receiving end of a triggering dependency, so its Dependencies carry the none line with its reason — the output language's word for none — rather than a reversed triggering entry or an invented sixth relationship type",
+        "REQ-105, the non-functional row, appears in the Appendix's Non-Functional Requirements subsection naming the use cases it constrains — not as a use case",
+        "The source-coverage check counts spreadsheet rows, not § sections: every functional row REQ-101 to REQ-104 is cited by at least one use case's Source or named under Flagged Items"
+      ]
+    },
+    {
+      "id": "eval-24",
+      "name": "Source states its own priorities (numbered scale)",
+      "description": "The pasted requirements carry the source's own P1-P3 tiers instead of MoSCoW. Tests the numbered-scale branch of the Priority rule: the most critical tier maps to High, the least critical to Low, the tiers between to Medium. Input travels in the prompt, following the eval-12 pattern.",
+      "prompt": "Here are our requirements for a warehouse picking app, with our priority tiers. P1: a picker can scan an item and confirm it into a shipment. P2: a picker can report a damaged item with a photo. P3: a supervisor can export last month's picking statistics. Extract the use cases. Language: English. Format: Markdown.",
+      "files": [],
+      "assertions": [
+        "NO configuration question is asked: language and format were already stated in the request",
+        "Priorities follow the source's own numbered tiers rather than the model's criticality judgement: the P1 scan-and-confirm use case is High, the P2 damaged-item use case is Medium, and the P3 statistics-export use case is Low",
+        "Each use case's detail level follows the priority the source gave it: a 3-5 sentence Target with 5-15 input and output items for the P1 case, a 1-2 sentence Target with 2-5 items for the P3 case",
+        "Only the P1 use case carries Acceptance Criteria; the P2 and P3 ones omit the field",
+        "Each Source citation quotes the sentence it comes from in the pasted text's own wording",
+        "The source states no legend for its P1-P3 tiers, so the reading that P1 is the most critical is recorded under Flagged Items as an ambiguity"
+      ]
+    },
+    {
+      "id": "eval-25",
+      "name": "Colliding prefixes, inherited access, shared resource, output-only actor",
+      "description": "One pasted source that exercises four role and dependency rules with no eval of their own: two role names that suggest the same three letters, a role that inherits another's access, a resource two roles use in no fixed order, and an actor named only as the receiver of an output.",
+      "prompt": "Here are our requirements for a claims system. A Claim Handler registers a new claim and attaches the supporting documents. A Claim Auditor reviews registered claims for compliance. A Senior Claim Handler has all the rights of a Claim Handler and can in addition approve payments above 10,000 euro. Both the Claim Handler and the Claim Auditor read the shared customer master record, and neither of them has priority over the other. The policyholder receives the settlement letter. Extract the use cases. Language: English. Format: Markdown.",
+      "files": [],
+      "assertions": [
+        "NO configuration question is asked: language and format were already stated in the request",
+        "Claim Handler and Claim Auditor both suggest CLA, so one of them is differentiated: every prefix in the analysis is unique and no prefix is assigned twice",
+        "The Senior Claim Handler's inherited access is stated in its role description, and the Claim Handler's use cases are NOT re-listed under the senior role's own prefix",
+        "The customer master record is recorded as a shared resource dependency between the Claim Handler's and the Claim Auditor's use cases, rather than as a prerequisite or a data dependency, since the source gives no order between them",
+        "The policyholder gets no role section, no prefix, and no place in the role count, because it only receives an output; it is named in the description of the role it interacts with",
+        "The Critical Dependencies Matrix carries the shared-resource entries with the same code pairs and directions as the per-use-case Dependencies lists"
+      ]
+    },
+    {
+      "id": "eval-26",
+      "name": "Non-Latin source script",
+      "description": "The pasted requirements are Japanese and the deliverable is English. Tests the romanization branch of the prefix rule: a prefix follows the source's role name through a standard romanization, never the output-language translation of it.",
+      "prompt": "Here are our requirements, in Japanese: 病院システムの要件です。医師は診療記録を作成します。看護師はバイタルサインを記録します。医療事務は診療報酬を請求します。 Extract the use cases. Language: English. Format: Markdown.",
+      "files": [],
+      "assertions": [
+        "NO configuration question is asked: language and format were already stated in the request",
+        "Custom prefixes come from a standard romanization of the Japanese role names — 医師 gives ISH and 看護師 gives KAN — rather than from their English translations, so neither DOC nor NUR appears",
+        "Every prefix is unique across the analysis",
+        "The Appendix's Role Identifier Legend gives each prefix its role name in English",
+        "Source citations quote the Japanese wording of the pasted requirements, untranslated",
+        "The document's own vocabulary appears as the English term with the Japanese term in parentheses at first use, for example medical record (診療記録), and the English term alone afterwards",
+        "Descriptive prose — Target, Main Flow, Variations, User Story — is written fully in English",
+        "The deliverable is a .md whose filename uses the project or domain name as the source name, since no source file exists"
+      ]
+    },
+    {
+      "id": "eval-27",
+      "name": "Numbered scale whose legend inverts the default",
+      "description": "The pasted requirements rate priorities 1 to 5 and state that 5 is the highest. Tests that Priority follows the source's own legend rather than the skill's lower-number default, and that a stated legend leaves nothing to flag. Input travels in the prompt, following the eval-12 pattern.",
+      "prompt": "Here are our requirements for a fleet booking tool, rated 1 to 5 where 5 is the highest priority and 1 the lowest. Priority 5: a driver can book an available vehicle for a date range. Priority 3: a driver can attach a damage photo when returning a vehicle. Priority 1: a fleet manager can export last quarter's utilisation figures. Extract the use cases. Language: English. Format: Markdown.",
+      "files": [],
+      "assertions": [
+        "NO configuration question is asked: language and format were already stated in the request",
+        "The source's legend beats the skill's lower-number default: the priority-5 booking use case is High, the priority-3 damage-photo use case is Medium, and the priority-1 export use case is Low",
+        "Each use case's detail level follows the priority the source gave it: a 3-5 sentence Target with 5-15 input and output items for the priority-5 case, a 1-2 sentence Target with 2-5 items for the priority-1 case",
+        "Only the priority-5 use case carries Acceptance Criteria; the priority-3 and priority-1 ones omit the field",
+        "Nothing is flagged about the scale's direction, because the source states its own legend",
+        "Each Source citation quotes the sentence it comes from in the pasted text's own wording",
+        "The Flagged Items section appears in the deliverable whatever it contains — as flagged items, or as the one-line nothing-flagged note — and is never omitted entirely"
+      ]
+    },
+    {
+      "id": "eval-28",
+      "name": "One unreadable source among several",
+      "description": "A readable attachment plus a scanned, image-only PDF addendum described in the prompt, since a scan cannot ship as a fixture. Tests the multi-source branch of the Unreadable Input edge: continue from the readable source, name the unreadable one, and invent none of its content. Also grades the any-lost-source rule: the Coverage Assessment drops to Low.",
+      "prompt": "Here are our two requirements documents: the main one attached, and a scanned, image-only PDF printout of our access addendum that has no selectable text. Extract the use cases. Language: English. Format: Markdown.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "No configuration question is asked: language and format were already stated in the request",
+        "The run continues from the readable attachment instead of stopping: the main document's use cases are extracted and the deliverable is produced",
+        "The unreadable source is named under Flagged Items and in the completion message",
+        "The Coverage Assessment is Low: a source was lost, and the stated criteria place any lost source in the lowest tier",
+        "No content is invented for the unreadable addendum: no receptionist, badge-synchronization, or host-notification use cases appear",
+        "The deliverable is a .md named Use_Cases_sample-requirements_EN_[date].md — the one source actually analyzed"
+      ]
+    },
+    {
+      "id": "eval-29",
+      "name": "Second language in the same session",
+      "description": "An English Word deliverable, then a request for the same analysis in Sicilian. Tests the shortest-ISO-code branch of the filename rule and the two-languages rule together: SCN in the filename, no shared name, and no _v2, because a different language is not a regeneration.",
+      "prompt": "Extract the use cases from the attached requirements. Language: English. Format: Word. — After the first deliverable arrives, send: Now give me the same analysis in Sicilian.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "The second deliverable's filename carries SCN — the shortest ISO code Sicilian has, since it has no two-letter one — not EN, not SIC, and not the language's name: Use_Cases_sample-requirements_SCN_[date].docx",
+        "The two filenames differ, so the earlier English file is neither overwritten nor reused, and no _v2 is appended: a different language is not a regeneration",
+        "The Sicilian document's headings, field labels and priority values are written in Sicilian, while use case codes and role prefixes stay Latin and Source citations keep the English section wording"
+      ]
+    },
+    {
+      "id": "eval-30",
+      "name": "Section-less uploaded file",
+      "description": "The source is an uploaded plain-text file with no headings and no requirement IDs. Tests the section-less-file branch of the unit rules: sentence citations, sentence-counted coverage, and Sections Analyzed reporting the file's sentences rather than sections or sheets it does not have. Input ships as a .txt fixture, following the eval-23 pattern.",
+      "prompt": "Here is our requirements file. Extract the use cases. Language: English. Format: Markdown.",
+      "files": [
+        "evals/sample-requirements.txt"
+      ],
+      "assertions": [
+        "No configuration question is asked: language and format were already stated in the request",
+        "The deliverable is a .md named Use_Cases_sample-requirements_EN_[date].md — the single source file's name without its extension",
+        "Every Source cites the sentence it comes from, quoted in the file's own wording («…»), with inferred use cases marked (inferred) — never a § section or a requirement ID the file does not have",
+        "The source-coverage check counts sentences: every functional sentence of the file is cited by at least one use case's Source or named under Flagged Items",
+        "Sections Analyzed reports the source's own unit — its sentences",
+        "The 2-item vs 3-item reservation contradiction appears under Flagged Items",
+        "The renewal requirement keeps the source's Must-have rating as High, following the source instead of the model's judgement"
+      ]
+    },
+    {
+      "id": "eval-31",
+      "name": "Sheet-less CSV source",
+      "description": "The source is a CSV export of a requirements spreadsheet, so it has requirement IDs and priorities but no sheets. Tests the sheet-less branch of the unit rules: the file itself stands in for a sheet in citations and in Sections Analyzed, while coverage keeps counting rows. Input ships as a .csv fixture, following the eval-23 pattern.",
+      "prompt": "Here is our requirements spreadsheet exported as CSV. Extract the use cases. Language: English. Format: Markdown.",
+      "files": [
+        "evals/sample-requirements.csv"
+      ],
+      "assertions": [
+        "No configuration question is asked: language and format were already stated in the request",
+        "The deliverable is a .md named Use_Cases_sample-requirements_EN_[date].md — the single source file's name without its extension",
+        "Every Source cites the file name and the requirement identifier in the sample-requirements.csv!REQ-10x form — a sheet-less CSV names the file where a workbook names its sheet — never a sheet name the file does not have and never a § section",
+        "Sections Analyzed names the file itself, the unit a sheet-less CSV contributes in place of a sheet",
+        "The source-coverage check counts rows: every functional row REQ-101 to REQ-104 is cited by at least one use case's Source or named under Flagged Items",
+        "REQ-105, the non-functional row, appears in the Appendix's Non-Functional Requirements subsection — not as a use case"
+      ]
+    },
+    {
+      "id": "eval-32",
+      "name": "One no-requirements source among several",
+      "description": "A readable requirements attachment plus a pasted company brochure that carries no system behaviour. Tests the multi-source branch of the Source Without Requirements Content edge: continue with the source that carries requirements, name the one that does not, and rate the coverage Low. The brochure travels in the prompt, following the eval-17 pattern.",
+      "prompt": "Here are our requirements document, attached, and our company brochure: 'FitClub Center is the gym for you. We offer 40 weekly classes, a modern weight room, and personal training from 35 euro per session. Open every day 7-23. New members get the first month at half price. Sign up at the front desk or on our website.' Extract the use cases from them. Language: English. Format: Markdown.",
+      "files": [
+        "evals/sample-requirements.md"
+      ],
+      "assertions": [
+        "No configuration question is asked: language and format were already stated in the request",
+        "The run continues from the requirements document instead of stopping: its use cases are extracted and a deliverable is produced",
+        "The brochure is named, as what it appears to be, under Flagged Items and in the completion message — a source that carries no requirements content",
+        "No use cases are invented from the brochure: no sign-up, personal-training, or pricing use cases appear",
+        "The Coverage Assessment is Low: a source carried no requirements, and the stated criteria place that in the lowest tier",
+        "The §3.1 vs §3.3 booking-window contradiction from the requirements document still appears under Flagged Items"
+      ]
+    }
+  ],
+  "eval_notes": "Thirty-two cases covering: the merged output-configuration step (ask only what is unanswered, defaults otherwise), the language rule (asked when the request states no language, then defaulting to the request's language when that is Italian or English and to Italian otherwise, with chat messages always in the request's language) and the cross-language rules (translated labels and priority values, codes, prefixes and source citations that follow the source instead of the output language), the complete Step 5 data model (Priority, Main Flow, Variations, Source, User Story), the Step 6 silent pre-delivery verification and its source-coverage check, platform-specific delivery (absolute path on Claude Code, platform file delivery on claude.ai), PDF output with A4, image-only PDF handling, very-large-document persistence, unsupported-format handling, Markdown output, the never-overwrite regeneration rule (_v2), multi-document source citation, pasted-text input with no source file, the format-recommendation path, and multi-format output (Word plus Excel sharing one base filename), plus two input paths: a source with no requirements content (case 17, a pasted brochure), and a non-English source (case 18, an Italian text exercising the source-language rules and custom prefixes from Italian role names), and three branches that carry a decision of their own: an attachment the platform cannot parse (case 19, which splits by platform — a local conversion on Claude Code, a request for another format on claude.ai), a right-to-left output language (case 20, where the fpdf2 fallback is off, an unavailable weasyprint must stop and ask, and codes such as ADM-001 keep their left-to-right order inside the Arabic text), and a special requirement that narrows the analysis (case 21, where the cross-role dependencies must go to Flagged Items instead of citing codes that do not exist), and a source that states its own MoSCoW priorities (case 22, where Priority follows the source and a Won't-have requirement earns no use case). Run each case's prompt in a fresh session with the skill active, and once without it as a baseline, then grade the assertions against the results. Cases 2, 12, 17, 18, 19, 22, 24, 25, 26 and 27 carry their input in the prompt itself; the others attach evals/sample-requirements.md (case 5 additionally claims a 180-page source in its prompt, and cases 28 and 32 additionally introduce their second source in their prompt), except where the sentences below name a different or additional fixture (cases 10, 23, 30 and 31). Cases 9, 15, 16 and 29 drive two-turn interactions: case 9 asks for a regeneration after the first deliverable, cases 15 and 16 answer the configuration question without choosing a language, which is what exercises the language default, and case 29 asks for the same analysis in a second language after the first deliverable. Case 10 attaches both sample documents. Cases 3, 15 and 16 all read an English source document, so they also grade the source-language rules; case 18 reads an Italian one. Case 23 attaches a spreadsheet fixture (sample-requirements.xlsx): it grades the spreadsheet citation form (Requirements!REQ-101) and priorities read from the source's own MoSCoW column, and its non-functional row exercises the Non-Functional Requirements section in the Markdown Appendix. Cases 24 to 26 close branches that had no eval of their own: a source that states its priorities as a numbered scale (case 24, where P1 maps to High and P3 to Low), four role and dependency rules in one source (case 25 — two role names that suggest the same three letters, a role that inherits another's access, a resource used in no fixed order, and an actor named only as the receiver of an output), and a non-Latin source script (case 26, where the prefix follows a romanization of the Japanese role name rather than its English translation). Case 27 grades a 1-to-5 scale whose stated legend inverts the skill's lower-number default: the branch where following the default would be wrong. Cases 28 and 29 cover branches no other case reaches: a multi-source run whose second source is unreadable (case 28, where the run continues from the readable source, names the unreadable one under Flagged Items, invents none of its content, and drops the Coverage Assessment to Low because a source was lost), and a second language requested in the same session (case 29, where the Sicilian deliverable's filename carries SCN — the shortest ISO code the language has — so two languages never share one filename, and a different language is not a regeneration, so no _v2 is appended). Case 30 attaches a section-less plain-text fixture (sample-requirements.txt): it grades the unit rules on an uploaded file with no headings — sentence citations in the file's own wording, coverage counted in sentences, and Sections Analyzed reporting the file's sentences — plus the reservation contradiction the fixture plants and the Must-have rating it states. Case 31 attaches a CSV fixture (sample-requirements.csv) carrying the same rows as the spreadsheet one: it grades the sheet-less branch of the unit rules — the file itself named where a workbook names its sheet, in citations and in Sections Analyzed — with coverage still counting rows. Case 32 pairs the standard attachment with a pasted brochure, following the eval-17 pattern: the run continues from the source that carries requirements, the brochure is named as a no-requirements source, the Coverage Assessment drops to Low, and no use cases are invented from it. Two rules carry no assertion on purpose — the Analysis Date of a regeneration documents an invariant rather than instructing a behaviour, and only shows across two calendar days, which no single session spans; and the filename's character and length limits are already enforced by Step 6's filename check, which every case with a named deliverable exercises. Thirty-two cases in total."
+}

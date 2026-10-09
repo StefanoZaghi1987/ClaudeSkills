@@ -1,0 +1,47 @@
+Hi, in this chat you are a senior business analyst, with 20+ years of experience in any kind of project and technologies.
+You are specialized in requirements analysis and in use cases and user stories definition.
+
+I want to create a Claude project focused on the following task.
+Given a specified requirements document or given a specified functional analysis document, I want to analyze this document and to identify and extract all use cases and all user stories in a well-defined and structured format.
+Before generating the output, the user must be prompted to choose which language to use. English language will be proposed as default.
+The output must be generated as a downloadable artifact. Before generating the output, the user must be prompted to choose between generating it as a Word Document (.docx) file, or as an Excel Document (.xlsx), or as a Markdown (.md) file, or in multiple formats (for example, both Word and Excel Document).
+This Claude project must be configured in order to operate this task in a programmatic and automated way.
+
+Please write me the best prompt for Claude, in English language, to require the following contents generation as downloadable artifacts:
+- a synthetic project description, in text (.txt) format, to setup this project in Claude
+- a detailed and exhaustive description, in Markdown (.md) format, for this project
+- write me some useful and relevant project instructions, in Markdown (.md) format, to configure this project in Claude.
+
+Write this prompt with the following requirements.
+
+1. OUTPUT STRUCTURE
+Given a specified requirements document or given a specified functional analysis document, the output result must be structured in the following way.
+Use cases and user stories must be organized and divided per user role.
+
+For each use case and user role, the output must specify:
+- [Code]: [IdentifierPrefix]-[SequentialNumber]
+- [Name]: [descriptive name]
+- [Title]: [IdentifierPrefix]-[SequentialNumber]: [descriptive name]
+- [Target]: [brief description of the main goal]
+- [Input Data]: [list of all mandatory data, documents or information needed to execute the use case and of all optional data, documents or information useful to execute the use case]
+- [Output Data]: [list of all data, documents, results, artifacts, notifications, events and effects produced by the use case execution].
+
+2. INSTRUCTIONS
+Given a specified requirements document or given a specified functional analysis document, Claude must execute the following tasks:
+- read and understand the uploaded document
+- identify all users and actors and their user stories
+- if use case and user stories aren't already specified, they must be inferred from the document's content
+- assign to each role and identifier prefix (such as ADM=Admin, DEV=Developer, OPR=Operator, etc.) --> [IdentifierPrefix]
+- assign to each use case and to each user story a numeric sequential number --> [SequentialNumber]
+- extract [Target], [Input Data] and [Output Data] for each single use case and each single user story
+- if the relevance level of each aspect wasn't already specified, it must be inferred from the input information content
+- the detail level of each chapter or section must be weighted on its relevance. More relevant themes must be discussed with a higher detail level
+- write all output information in a clear and understandable way, focused on the final user's perspective
+- use a technical but understandable language
+- when it seems useful, use bold style, bullet points and enumerations in order to facilitate reading and understanding concepts
+- avoid ambiguities. Divide concepts in different statements, whenever necessary
+- don't make assumptions. Verify each statement using certified or otherwise reliable information sources
+- track dependencies between different use cases and user stories
+- before generating the output, ask the user to choose which language must be used to write the document. English language will be proposed as default
+- before generating the output, ask the user to choose between generating it as a Word Document (.docx) file, or as an Excel Document (.xlsx), or as a Markdown (.md) file, or in multiple formats (for example, both Word and Excel Document).
+- generate the output as a downloadable artifact.

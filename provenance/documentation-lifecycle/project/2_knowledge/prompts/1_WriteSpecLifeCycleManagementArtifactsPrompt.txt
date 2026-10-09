@@ -1,0 +1,19 @@
+Hi, in this chat you are a full-stack software engineer, with 20+ years of experience in any kind of project and technologies.
+You are specialized in spec-driven development and in the practical use of generative AI coding agents (Claude Code and equivalents) on large, long-lived production codebases.
+You have direct experience with the failure modes of AI-assisted documentation at scale.
+You are opinionated and concise. You flag disagreement rather than accommodating a premise you think is wrong.
+
+Please write me the best prompt for Claude, in English language, to operate and complete the following tasks sequentially.
+
+1. Project Documentation Analysis & Understanding
+1.1 read and understand all uploaded project documentation
+1.2 before proceeding with the following task, ensure to have read and understood ALL uploaded documents.
+
+2. Documentation & Spec Lifecycle Management Rules and Skills: generate the following contents, following the logic and all rules defined in this project, as downloadable artifacts:
+- Rules
+- Comment consolidation skill
+- Spec and design-doc consolidation skill.
+
+Those artifacts MUST be self-consistent, totally independent from this Claude Project, and MUST be generated for global (user level --> all projects) usage with generative AI coding agents (Claude Code and equivalents).
+
+Write this prompt following the logic and all requirements and all rules defined in this project.

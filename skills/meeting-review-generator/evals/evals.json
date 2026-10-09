@@ -1,0 +1,178 @@
+{
+  "skill_name": "meeting-review-generator",
+  "evals": [
+    {
+      "id": "eval-1",
+      "name": "Basic verbale - No preferences given",
+      "description": "Italian prompt, sample transcript attached, neither language nor format specified. Tests the single combined preference question and the default path.",
+      "prompt": "Allego la trascrizione della riunione di ieri. Puoi farmi il verbale?",
+      "files": [
+        "evals/sample-transcript.md"
+      ],
+      "assertions": [
+        "Exactly ONE message asks for both language and format together, before any report content",
+        "The preference question is written in Italian, the language of the user's request",
+        "After the answer (Italian, DOCX), the report is written in Italian and saved as a .docx file",
+        "Report contains the four sections in order, titles in Italian: Introduzione, Temi trattati, Sintesi, Prossimi passi",
+        "Filename follows meeting-review-report-[date]-[LANG].docx (date 2026-08-26 from the transcript)",
+        "On Claude Code the absolute file path is reported; on claude.ai the platform file delivery is used"
+      ]
+    },
+    {
+      "id": "eval-2",
+      "name": "Skip rule - Preferences already given",
+      "description": "User states language and format in the request. Tests that no preference question is asked.",
+      "prompt": "Fai il verbale di questa trascrizione in inglese come PDF. (trascrizione allegata)",
+      "files": [
+        "evals/sample-transcript.md"
+      ],
+      "assertions": [
+        "No preference question is asked; generation starts immediately",
+        "The report is in English and saved as a PDF",
+        "Filename carries the EN language code",
+        "Italian participant names and technical details are preserved accurately"
+      ]
+    },
+    {
+      "id": "eval-3",
+      "name": "Multiple transcripts - Consolidated or separate",
+      "description": "Two different meeting transcripts attached (sample-transcript.md, sample-transcript-2.md). Tests that the consolidated-vs-separate question joins language and format in the single Phase 3 message.",
+      "prompt": "Ti allego le trascrizioni di due riunioni diverse del progetto.",
+      "files": [
+        "evals/sample-transcript.md",
+        "evals/sample-transcript-2.md"
+      ],
+      "assertions": [
+        "The FIRST message asks everything still missing in one message: consolidated-or-separate, plus language and format (the prompt gives none of them)",
+        "No report is generated before the user answers",
+        "If the user answers 'consolidated', the report follows the Multi-Meeting Consolidated Report rules in references/output-structure.md (one Introduction for both meetings, recurring themes merged with their dates, Overall Progress present) and the single file uses the most recent meeting date (2026-09-09)",
+        "If the user answers 'separate reports', two files are produced, each named with its own meeting date (2026-08-26 and 2026-09-09); the -2 suffix applies only when separate reports share the same date"
+      ]
+    },
+    {
+      "id": "eval-4",
+      "name": "Historical report - Overall Progress",
+      "description": "Current transcript (sample-transcript.md) plus sample-previous-report.md (verbale of 12 August 2026). Tests historical integration. Language and format stated (Italian, Word), so no preference question.",
+      "prompt": "Allego la trascrizione di oggi e il verbale della riunione precedente. Genera il verbale di oggi in italiano, formato Word.",
+      "files": [
+        "evals/sample-transcript.md",
+        "evals/sample-previous-report.md"
+      ],
+      "assertions": [
+        "No preference question is asked (all already stated)",
+        "The Summary contains subsection 3.5 Overall Progress comparing with the previous report (test environment completed; performance open point advanced to the rewrite decision)",
+        "Recurring themes keep consistent naming across the two reports"
+      ]
+    },
+    {
+      "id": "eval-5",
+      "name": "Relevance proportionality",
+      "description": "Sample transcript has one high-relevance theme (portale ordini), one medium (manuali), one low (chiusura ufficio). Tests detail proportional to relevance.",
+      "prompt": "Genera il verbale di questa trascrizione, italiano, Markdown.",
+      "files": [
+        "evals/sample-transcript.md"
+      ],
+      "assertions": [
+        "The portale ordini theme gets multiple paragraphs with its decision (the query rewrite), its two actions with assignees and deadlines, and the dependency note",
+        "The manuali di procedura theme gets 1-2 paragraphs with its revision deadline",
+        "The office-closure reminder gets one brief paragraph or less",
+        "All 2 decisions, 3 actions, and 1 open point (utenze esterne) appear in the Summary",
+        "The go-live constraint (production after 1 November) appears in the Summary's Critical Aspects",
+        "Output is a Markdown file in Italian"
+      ]
+    },
+    {
+      "id": "eval-6",
+      "name": "No transcript attached",
+      "description": "Prompt with no attachment. Tests the Phase 1 guard: ask for the meeting transcript before anything else.",
+      "prompt": "Ciao, puoi generare il verbale della riunione di ieri?",
+      "files": [],
+      "assertions": [
+        "The FIRST message asks the user to attach or paste the meeting transcript",
+        "The request is written in Italian, the language of the user's request",
+        "No preference question (language, format) is asked and no report is generated before the transcript arrives"
+      ]
+    },
+    {
+      "id": "eval-7",
+      "name": "SAL with previous report",
+      "description": "SAL request with the current transcript (26 August 2026) and the previous verbale (12 August 2026). Language and format not stated, so the single preference question still applies. Tests SAL handling with history.",
+      "prompt": "Crea il SAL di questa riunione usando il verbale precedente.",
+      "files": [
+        "evals/sample-transcript.md",
+        "evals/sample-previous-report.md"
+      ],
+      "assertions": [
+        "Exactly ONE preference message (language and format; no consolidated question — a single transcript is attached)",
+        "Subsection 3.5 Overall Progress carries full weight: the previous action (data load by 31 August) is reported completed, and the previous open point (performance under load) is advanced to the query-rewrite decision",
+        "Completion status of every action from the previous report is covered",
+        "The skill never asks for more documentation and never blocks"
+      ]
+    },
+    {
+      "id": "eval-8",
+      "name": "SAL without previous report",
+      "description": "SAL request with the transcript only. Tests the never-block rule: standard report without asking for a previous verbale.",
+      "prompt": "Crea il SAL di questa trascrizione.",
+      "files": [
+        "evals/sample-transcript.md"
+      ],
+      "assertions": [
+        "No request for a previous report is made",
+        "After the single preference message, the standard four-section report is generated",
+        "Subsection 3.5 appears only to the extent the transcript itself gives historical context (e.g., manuals last updated in July)"
+      ]
+    },
+    {
+      "id": "eval-9",
+      "name": "Partial preferences - only the consolidated question remains",
+      "description": "Two transcripts attached; language and format stated in the prompt, consolidated-or-separate not stated. Tests that the single Phase 3 message asks only for the missing choice, in the user's language.",
+      "prompt": "Ti allego le trascrizioni delle due riunioni del progetto. Vorrei tutto in italiano, in formato Word.",
+      "files": [
+        "evals/sample-transcript.md",
+        "evals/sample-transcript-2.md"
+      ],
+      "assertions": [
+        "Exactly ONE question is asked, and it asks only consolidated-or-separate — language and format are not re-asked",
+        "The question is written in Italian, the language of the user's request",
+        "No report is generated before the user answers"
+      ]
+    },
+    {
+      "id": "eval-10",
+      "name": "Right-to-left output language",
+      "description": "The user asks for the report in Arabic as a PDF. Tests the right-to-left branch of STEP 4.5, which contains a refusal: the fpdf2 fallback is switched off, so an unavailable weasyprint must stop and ask rather than ship unshaped text.",
+      "prompt": "Attached is the transcript of yesterday's meeting. Write the meeting report in Arabic, as a PDF.",
+      "files": [
+        "evals/sample-transcript.md"
+      ],
+      "assertions": [
+        "No preference question is asked: language and format were both stated, and a single transcript does not raise the consolidated-or-separate question",
+        "On an environment without document skills, the PDF is built with weasyprint and the fpdf2 fallback is NOT used, because fpdf2 does not shape right-to-left text",
+        "If weasyprint is unavailable, the skill asks the user to install it or offers Markdown instead, rather than producing a PDF with unshaped text",
+        "The rendered PDF lays the text out right-to-left, not left-to-right",
+        "The four sections are present and in order, with their titles written in Arabic",
+        "Participant names, dates and numbers stay faithful to the Italian transcript and are not invented",
+        "The filename carries the uppercase language code: meeting-review-report-[YYYY-MM-DD]-AR.pdf",
+        "Page size is A4",
+        "Numeric runs inside the Arabic text — dates, times, percentages, signed or unit-bearing values — read left-to-right, so no sign or unit detaches from its value"
+      ]
+    },
+    {
+      "id": "eval-11",
+      "name": "Unreadable transcript - scanned PDF",
+      "description": "The transcript is described as a scan with no extractable text. Tests the Special Handling entry: name the file, say the text cannot be read here, ask for a text version, and never invent what was said in the meeting.",
+      "prompt": "Ti allego la scansione degli appunti della riunione di ieri (PDF scansionato, solo immagini). Puoi farmi il verbale?",
+      "files": [],
+      "assertions": [
+        "The skill states plainly that the file's text cannot be read on this platform, and names the file",
+        "It asks for a text version, a searchable PDF, or a different format",
+        "On Claude Code it may first offer to convert the file locally where a suitable tool is available",
+        "No report is generated and no participant, decision or action is invented from the filename or the request",
+        "The message is written in Italian, the language of the user's request",
+        "No preference question (language, format) is asked before a readable transcript arrives"
+      ]
+    }
+  ],
+  "eval_notes": "All sample material is fictional: sample-transcript.md (meeting of 26 August 2026), sample-transcript-2.md (follow-up meeting of 9 September 2026, for case 3), and sample-previous-report.md (verbale of 12 August 2026, for cases 4 and 7). Cases cover: default question flow (1), skip rule (2, 4), multiple transcripts (3), historical integration (4), relevance-weighted detail (5), missing transcript (6), SAL with a previous report (7), SAL without one (8), and partial preferences (9). Every case expects the four-section structure from SKILL.md and the meeting-review-report-[date]-[LANG] filename convention. Case 10 covers a branch no other case reaches: a right-to-left output language, where the fpdf2 fallback is off and an unavailable weasyprint must stop and ask instead of shipping unshaped text, and where the numbers inside that text keep their own left-to-right order. Case 11 covers the other branch no other case reaches: a transcript whose text cannot be read at all, where the skill names the file and asks for a readable one instead of inventing a meeting. Eleven cases in total."
+}

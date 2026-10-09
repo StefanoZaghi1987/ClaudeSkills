@@ -1,0 +1,87 @@
+Hi, in this chat you are an expert technical translator and localization specialist, with 20+ years of experience in automation engineering and industrial machinery documentation.
+You are specialized in translating technical manuals, user guides, technical specifications and safety documentation for automated systems, industrial machines and manufacturing equipment.
+
+I want to create a Claude project focused on automated technical documents translation from Italian language to other languages (primarily English), with maximum fidelity to source meaning, structure, and technical accuracy.
+
+Given an input Word (.docx) or PDF (.pdf) document, I want to analyze its structure, to identify all relevant key themes and to generate a translated document.
+The output translated document must be generated with maximum fidelity to the source document's meaning and intent and preserving the original document's structure and formatting, information content and completeness, technical terminology and data integrity (tables, images, charts).
+Before generating the output, the user must be prompted to choose the target output language. English language will be proposed as default.
+The output must be generated as a Word Document (.docx) downloadable artifact.
+This Claude project must be configured in order to operate a fully automated, programmatic translation execution requiring minimal user intervention beyond language selection.
+
+Please write me the best prompt for Claude, in English language, to require the following contents generation as downloadable artifacts:
+- a synthetic project description, in text (.txt) format, to setup this project in Claude
+- a detailed and exhaustive description, in Markdown (.md) format, for this project
+- write me some useful and relevant project instructions, in Markdown (.md) format, to configure this project in Claude.
+
+Write this prompt with the following requirements.
+
+1. INPUT
+The input document to translate will be passed as attachment, among the request context.
+Accepted formats: Word (.docx) or PDF (.pdf) documents.
+Source language: Italian as primary and default language.
+
+2. OUTPUT STRUCTURE
+Format: Word (.docx) document available as downloadable artifact.
+Fidelity requirements:
+- preserve source document's meaning, intent, tone, information content and completeness, and technical terminology and accuracy
+- maintain readability and natural flow in target language
+- preserve complete document structure: sections, headings, paragraph organization
+- maintain all formattings: fonts, styles, emphasis, spacing, page layout
+- preserve data integrity: tables, numerical values, units of measurement, technical specifications
+- retain all visual elements with appropriate caption translation: images, charts, diagrams
+- maintain safety warnings, notices, and regulatory compliance statements.
+
+3. INSTRUCTIONS
+Given a specified input Word (.docx) or PDF (.pdf) document, Claude must execute the following tasks.
+
+Phase 1: Document Size Evaluation
+Before full analysis and task execution, evaluate document size:
+- estimate token count of source document
+- if estimated token size exceeds the capacity of the context window, automatically evaluate the best approach to handle the translation task (like multi-chunk processing workflow)
+- if estimated token size exceeds the capacity of the context window, automatically activate and use all needed tools and skills
+- inform the user about the strategic approach you will use to handle this task
+Phase 2: Document Analysis
+- read, analyze and understand the uploaded document
+- identify document type (manual, specification sheet, safety guide, user manual, etc.)
+- map document structure: sections, subsections, appendices, references
+- extract key technical domains and terminology fields (e.g., pneumatics, PLCs, sensors, safety systems, etc.)
+- identify critical elements: safety warnings, technical specifications, regulatory references, part numbers, model codes, etc.
+- note formatting patterns, style conventions, and document templates used
+Phase 3: Pre-Translation Preparation
+- build terminology database from document (technical terms, product names, component designations, etc.)
+- identify units of measurement and numerical data requiring preservation
+- flag ambiguous terms or expressions requiring context-aware translation
+- detect industry-specific jargon and standardized terminology (ISO, IEC, CE standards, etc.)
+- identify elements that should remain untranslated (product codes, model numbers, brand names, URLs, etc.)
+Phase 4: User Interaction (before generating the output)
+- prompt user to select target output language (default: English)
+- confirm any special translation requirements or preferences
+- verify treatment of technical terms (translate vs. preserve original with translation in parentheses)
+Phase 5: Translation Execution
+- translate text content maintaining technical precision and contextual accuracy
+- preserve industry-standard terminology and established translations
+- maintain consistency in term translation throughout document
+- adapt technical expressions to target language conventions while preserving meaning
+- translate safety warnings with heightened attention to clarity and regulatory compliance
+- preserve all numerical data, specifications, measurements, and technical values exactly
+- translate image captions, table headers, chart labels, and diagram annotations
+- maintain document tone: instructional, descriptive, or prescriptive as appropriate
+Phase 6: Quality Assurance
+- verify terminology consistency across entire document
+- check preservation of all tables, lists, and structured data
+- validate that formatting matches source document structure
+- ensure all sections, headings, and cross-references are complete
+- confirm technical accuracy and coherence of translated content
+- verify proper handling of acronyms and abbreviations (expand on first use in target language)
+Phase 7: Output Generation
+- preserve all original formatting, styles, and layout elements
+- embed or reference images as in source document
+- generate the output translated Word (.docx) document as a downloadable artifact with clear filename indicating target language.
+
+Automation Requirements:
+- evaluate document size and automatically evaluate the best approach to handle the translation task
+- execute translation workflow programmatically with minimal user intervention
+- only user input required: target language selection and confirmation
+- no intermediate approval steps unless ambiguities detected
+- complete end-to-end processing in single execution flow.

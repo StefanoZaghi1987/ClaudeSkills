@@ -1,0 +1,82 @@
+Hi, in this chat you are a senior business analyst, with 20+ years of experience in any kind of project and technologies.
+You are specialized in operating deep and complex analysis and writing technical summaries and report documents.
+
+Please write me the best prompt for Claude, in English language, to operate and complete the following tasks sequentially.
+
+1. Project Documentation Analysis & Understanding
+1.1 read and understand all uploaded project documentation
+1.2 before proceeding with the following task, ensure to have read and understood ALL uploaded documents.
+
+2. Document summarization: Given any input technical text (a manual, a scientific article, or any other kind of document) or a link to a website (or multiple websites) containing documentation, I want to analyze it, to identify all relevant discussed topics and themes, to understand all of them in a clear and profound way and to generate a detailed technical summary.
+This technical summary must contain detailed information about all covered topics, presented in a clear and well-structured manner.
+Given a specified technical text (manual, specification sheet, safety guide, user manual, etc.) or a link to a website (or multiple websites) containing documentation, Claude must execute the following tasks.
+
+Phase 1: Documentation Access
+- if the input consists of a link to a website (or multiple websites), you must use your web search tools and/or your web research tools in order to access to ALL related content
+Phase 2: Document Size Evaluation
+Before full analysis and task execution, evaluate input document size:
+- estimate token count of source document
+- if estimated token size exceeds the capacity of the context window, automatically evaluate the best approach to handle the analysis and summarization task (like multi-chunk processing workflow)
+- if estimated token size exceeds the capacity of the context window, automatically activate and use all needed tools and skills
+- inform the user about the strategic approach you will use to handle this task
+Phase 3: Document Analysis
+- read, analyze and understand the input documentation
+- identify document type (manual, specification sheet, safety guide, user manual, etc.)
+- map document structure: sections, subsections, appendices, references
+- identify all relevant discussed topics and themes and their technical context
+- if the relevance level of each topic wasn't already specified, it must be inferred from the input information content
+- extract key technical domains and terminology fields (e.g., pneumatics, PLCs, sensors, safety systems, etc.)
+- identify critical elements: safety warnings, technical specifications, regulatory references, part numbers, model codes, etc.
+- note formatting patterns, style conventions, and document templates used
+Phase 4: Pre-Summarization Preparation
+- build terminology database from document (technical terms, product names, component designations, etc.)
+- flag ambiguous terms or expressions requiring context-aware understanding
+- detect industry-specific jargon and standardized terminology (ISO, IEC, CE standards, etc.)
+- identify elements that should be explained
+Phase 5: User Interaction (before generating the output)
+- prompt user to select target output language (default: Italian)
+- confirm any special summarization requirements or preferences
+- verify treatment of ambiguous terms or expressions requiring context-aware understanding
+Phase 6: Summarization Execution
+- the detail level of each chapter or section must be weighted on its relevance. More relevant themes must be discussed with a higher detail level
+- write all output information in a clear and understandable way
+- use a technical but understandable language
+- when it seems useful, use bold style, bullet points and enumerations in order to facilitate reading and understanding concepts
+- avoid ambiguities. Divide concepts in different statements, whenever necessary
+- don't make assumptions. Verify each statement using certified or otherwise reliable information sources
+- make evidence on all relevant concepts, information details and critical aspects
+- track logical dependencies between different discussed topics and themes
+- preserve industry-standard terminology
+- adapt technical expressions to target language conventions while preserving meaning
+Phase 7: Quality Assurance
+- verify terminology consistency across entire document
+- ensure all sections, headings, and cross-references are complete
+- confirm technical accuracy and coherence of summarized content
+- verify proper handling of acronyms and abbreviations (expand on first use in target language)
+Phase 8: Output Generation
+- before generating the output, ask the user to choose which language must be used to write the document. Italian language will be proposed as default
+- before generating the output, ask the user to choose between generating it as a Word Document (.docx) file, or as a PDF document (.pdf), or as a Markdown (.md) file.
+- generate the output as a downloadable artifact.
+
+Automation Requirements:
+- evaluate document size and automatically evaluate the best approach to handle the translation task
+- execute summarization workflow programmatically with minimal user intervention
+- only user input required: target language selection and confirmation
+- no intermediate approval steps unless ambiguities detected
+- complete end-to-end processing in single execution flow.
+
+Write this prompt, generating it as a downloadable Markdown (.md) artifact, with the following requirements.
+
+1. INPUT
+The input will be a technical text (manual, specification sheet, safety guide, user manual, etc.) or a link to a website (or multiple websites) containing documentation.
+The input will be passed as attachment, among the request context.
+The accessed documentation must be deeply analyzed and understood in order to have a clear and detailed view about all discussed topics.
+Then, the obtained information must be used to generate a detailed, clear, well-structured and focused output.
+
+2. OUTPUT STRUCTURE
+The output report must be divided in multiple chapters or sections, one per each single relevant topic.
+
+It must be structured in the following way:
+- [INTRODUCTION]: the first chapter or section must be a brief introduction, in which will be described the main subject
+- [DISCUSSED TOPICS]: any relevant topic discussed in the input documentation must be explained in a dedicated chapter or section
+- [SUMMARY]: the report must include a chapter or section to summarize and clarify most important concepts and information details.
