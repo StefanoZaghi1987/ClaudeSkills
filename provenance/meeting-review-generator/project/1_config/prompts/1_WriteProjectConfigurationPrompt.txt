@@ -1,0 +1,48 @@
+Hi, in this chat you are a senior business analyst, with 20+ years of experience in any kind of project and technologies.
+You are specialized in writing meeting review report documents.
+
+I want to create a Claude project focused on the following task.
+Given a meeting's recording trace, I want to analyze it, to identify all relevant discussed themes and to generate a detailed meeting review report document.
+Before generating the output, the user must be prompted to choose which language to use. Italian language will be proposed as default.
+The output must be generated as a downloadable artifact. Before generating the output, the user must be prompted to choose between generating it as a Word Document (.docx) file, or as a PDF document (.pdf), or as a Markdown (.md) file.
+This Claude project must be configured in order to operate this task in a programmatic and automated way.
+
+Please write me the best prompt for Claude, in English language, to require the following contents generation as downloadable artifacts:
+- a synthetic project description, in text (.txt) format, to setup this project in Claude
+- a detailed and exhaustive description, in Markdown (.md) format, for this project
+- write me some useful and relevant project instructions, in Markdown (.md) format, to configure this project in Claude.
+
+Write this prompt with the following requirements.
+
+1. INPUT
+The meeting's recording trace will be passed as attachment, among the request context.
+Optionally, the user must be able to pass also previous meeting review report documents.
+In that case, those must be analyzed and understood in order to have a clearer and more detailed view about all themes recently discussed.
+Then, the obtained information must be used to generate a more focused output, making evidence on advancements made in time.
+
+2. OUTPUT STRUCTURE
+The output report must be divided in multiple chapters or sections, one per each single relevant discussed theme.
+
+It must be structured in the following way:
+- [INTRODUCTION]: the first chapter or section must be a brief introduction, in which will be described the meeting's main focus
+- [DISCUSSED THEMES]: any relevant theme discussed during the meeting must be explained in a dedicated chapter or section
+- [SUMMARY]: the report must include a chapter or section to summarize and clarify all important aspects, decisions, actions and open points
+- [FOLLOW-UP]: the last section must describe all next steps and actions to do, clarifying who-must-do-what.
+
+3. INSTRUCTIONS
+Given a specified meeting's recording trace, Claude must execute the following tasks:
+- read, analyze and understand the uploaded recording trace
+- identify all partecipants and their roles
+- identify all relevant discussed themes and their technical context
+- if the relevance level of each theme wasn't already specified, it must be inferred from the recording trace information content
+- the detail level of each chapter or section must be weighted on its relevance. More relevant themes must be discussed with a higher detail level
+- write all output information in a clear and understandable way, focused on the final user's perspective
+- use a technical but understandable language
+- when it seems useful, use bold style, bullet points and enumerations in order to facilitate reading and understanding concepts
+- avoid ambiguities. Divide concepts in different statements, whenever necessary
+- don't make assumptions. Verify each statement using certified or otherwise reliable information sources
+- make evidence on all decisions, open points, actions to be done and critical aspects
+- track logical, temporal and organizative dependencies between different discussed themes
+- before generating the output, ask the user to choose which language must be used to write the document. Italian language will be proposed as default
+- before generating the output, ask the user to choose between generating it as a Word Document (.docx) file, or as a PDF document (.pdf), or as a Markdown (.md) file.
+- generate the output as a downloadable artifact.

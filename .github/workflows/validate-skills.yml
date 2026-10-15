@@ -1,0 +1,94 @@
+name: validate-skills
+# Tags run through release-skills, which calls this workflow before it publishes
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_call:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: pip install pyyaml
+      - run: python3 build_skills.py
+      # One runner ships in both consolidation skills; a drift between the copies is a defect.
+      - run: diff -r skills/consolidate-comments/scripts skills/consolidate-specs/scripts
+      # diff -r ignores the executable bit, which the release zips carry from the index.
+      - run: test "$(git ls-files -s skills/consolidate-comments/scripts | cut -c1-6)" = "$(git ls-files -s skills/consolidate-specs/scripts | cut -c1-6)"
+      # escalation.md is per-skill, because its examples follow the pass kind; parallel.md and runner.md are byte-identical.
+      - run: for f in parallel.md runner.md; do cmp skills/consolidate-comments/reference/$f skills/consolidate-specs/reference/$f; done
+      # One local-Python guide ships in the five document generators, byte-identical.
+      - run: for s in meeting-review-generator technical-summary-generator technical-translation training-manual-generator; do cmp skills/usecase-extractor/references/local-python.md skills/$s/references/local-python.md; done
+      # weasyprint binds to GTK through cffi, so the native libraries come first.
+      # It is here to give the PDF branch its only end-to-end coverage: no
+      # LibreOffice and no weasyprint on the maintainer's Windows machine, where
+      # the GTK libraries are not pip-installable at all.
+      - run: sudo apt-get update && sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0
+      - run: pip install requests beautifulsoup4 lxml python-docx weasyprint
+      - run: python3 skills/web-site-to-document/scripts/test_scrape.py
+  # The same suite with no PDF engine at all: GTK is not pip-installable on Windows, so this
+  # is the machine state of most Windows users, and the engine checks must pass on it too.
+  test-scrape-windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.x"
+      # Pillow is optional for users; here it gives the WebP embedding check a Windows run
+      - run: pip install requests beautifulsoup4 lxml python-docx pillow
+      - run: python skills/web-site-to-document/scripts/test_scrape.py
+  # web-site-to-document's floor is 3.10 (the guard in main.py): the suite runs on it, so a
+  # call newer than the floor fails here and not at the end of a user's crawl.
+  test-scrape-py310:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.10"
+      - run: pip install requests beautifulsoup4 lxml python-docx
+      - run: python skills/web-site-to-document/scripts/test_scrape.py
+  # ADR 0023: 3.12 is the floor. The refusal must reach an older interpreter as the guard's
+  # own message, never as a SyntaxError from 3.12-only syntax above it.
+  py311-refusal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - shell: bash
+        run: |
+          # Actions runs bash with -e; the command's non-zero exit is the expected
+          # outcome here, so the capture happens with errexit off
+          set +e
+          out=$(python skills/consolidate-comments/scripts/consolidate.py self-test 2>&1)
+          code=$?
+          set -e
+          printf '%s\n' "$out"
+          test "$code" -ne 0
+          printf '%s\n' "$out" | grep -q "needs Python 3.12 or newer"
+  # The runner must reach the same verdicts on both platforms and on every supported Python
+  # (ADR 0023: 3.12 is the floor; ADR 0027 claims macOS parity), so its self-test runs on each.
+  selftest:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.12", "3.x"]
+    runs-on: ${{ matrix.os }}
+    # about 15 s on Linux, over 10 min on Windows: a hang must not hold a runner for 6 h
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python skills/consolidate-comments/scripts/consolidate.py self-test

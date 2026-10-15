@@ -1,0 +1,51 @@
+Vorrei creare una nuova skill che rappresenti un "estrattore di informazioni" da un sito web.
+Tale skill dovrà effettuare lo scraping completo di un sito web (web search, research, web scraping), dopodiché generare e restituire in output un documento che contenga e riproduca fedelmente l'intero contenuto informativo del sito web specificato.
+Di fatto vorrei che la skill sia in grado di "trasformare il sito web in un documento".
+
+Specifiche generali:
+1. Struttura del sito
+	- possibilità di effettuare lo scraping e l'estrazione di informazioni da qualsiasi tipo di sito, indipendentemente dalla relativa struttura
+	- selezione, in base alla struttura del sito, dell'approccio migliore per effettuare lo scraping e l'estrapolazione dei contenuti
+2. Scope dello scraping
+	- effettuare lo scraping non solo dell'URL di partenza, ma anche di tutti i link interni fino a una certa profondità
+	- profondità (numero di livelli) di scraping specificabile da parte dell'utente, in modo interattivo
+	- profondità (numero di livelli) proposta come default: l'intero albero di navigazione raggiungibile
+	- concedere l'accesso, tramite link, ai domini correlati. La skill dovrà verificare che i domini non siano bloccati dalle impostazioni network egress
+3. Struttura output
+	- replicare il layout visivo del sito
+	- generare un singolo documento completo e adeguatamente strutturato
+	- nome file generato automaticamente
+	- introdurre un indice/sommario generato automaticamente
+	- includere immagini
+	- preservare blocchi di codice
+	- preservare oggetti
+	- il contenuto dell'output dovrà essere selezionabile e ricercabile
+	- riprodurre fedelmente (al 100%) il contenuto informativo del sito
+	- rispettare la lingua originale del sito
+	- la skill dovrà gestire i seguenti formati di output: Microsoft Word (.docx), PDF (.pdf), Markdown (.md)
+	- formato dell'output specificabile da parte dell'utente, in modo interattivo. Default proposto: Microsoft Word (.docx)
+	- eventuale limite massimo, sul numero di pagine, specificabile da parte dell'utente (solo se risulta opportuno impostare un limite). Default: nessun limite.
+4. Comportamento skill
+	- gestione URL del sito da cui effettuare lo scraping: richiedibile interattivamente, oppure estrapolato in modo autonomo dalla richiesta dell'utente
+	- analisi preventiva della struttura e delle dimensioni del sito
+	- valutazione preventiva della dimensione potenziale dell'output
+	- richiesta all'utente, qualora risulti opportuno, di specificare un limite massimo sul numero di pagine dell'output
+	- selezione, in base alla struttura del sito, dell'approccio migliore per effettuare lo scraping e l'estrapolazione dei contenuti
+	- mostrare progressi durante l'esecuzione
+	- continuare in caso di errori. Arresto del processo dopo l'eventuale superamento della soglia di massimo 10 errori consecutivi.
+
+Ecco alcuni esempi di siti web che vorrei essere in grado di "trasformare in documenti":
+- https://help.example.com/erp/docs/getting-started
+- https://help.example.com/erp/docs/configuration
+- https://help.example.com/erp/docs/api-reference
+- https://help.example.com/addon-ui/docs
+- https://help.example.com/addon-manufacturing/docs
+- https://help.example.com/addon-manufacturing/scripting
+- https://learn.example.com/identity-platform
+
+Puoi aiutarmi? Quali sono le possibili soluzioni in questo ambito?
+Qual è l'approccio migliore da adottare?
+
+Vorrei iniziare questa attività definendo, in modo completo e preciso, le specifiche di questa skill.
+In caso di eventuali dubbi o necessità, fammi delle domande.
+Non inizare la fase di sviluppo fino a quando non avrò fornito una conferma esplicita.

@@ -1,0 +1,82 @@
+[Fictional test fixture: all names, data, and references are invented.]
+[Training Notes - Database Optimization]
+(rough notes, partial recording — structure unclear)
+
+Session date: 2024-03-05
+Presenter: Giulia Conti
+Audience: mixed — mostly DB admins, a couple of backend devs
+
+---
+
+Query optimization
+
+Biggest chunk of the session went here. Speaker walked through several slow
+queries and rewrote them live. Points made:
+
+- Avoid SELECT * — list the columns you actually need
+- Watch the WHERE clause: functions on columns kill index usage
+  e.g. WHERE YEAR(created_at) = 2024 cannot use the index on created_at
+  rewrite as range: WHERE created_at >= '2024-01-01' AND created_at < '2025-01-01'
+- EXPLAIN PLAN / EXPLAIN ANALYZE before and after every change
+- JOINs: filter early, join late — reduce rows before joining
+- Subqueries vs JOINs: sometimes the planner handles them the same,
+  measure, don't guess
+
+Example 1: order report query, 40s -> 1.2s after rewriting the date filter
+Example 2: customer search with leading wildcard '%text' — full table scan,
+  no index helps, needs full-text or trigram approach
+Example 3: GROUP BY on unindexed column, added index, sort dropped out of plan
+
+Someone asked about OR conditions — answer was brief: often rewritten as UNION
+by the planner, check the plan. (not much detail given)
+
+---
+
+Indexing
+
+Second large block, lots of examples on screen:
+
+- B-tree index is the default
+- Composite index column order matters: (customer_id, created_at) serves
+  "WHERE customer_id = X ORDER BY created_at" but not the reverse query well
+- Covering index: include the columns of the query so the table is never touched
+- Too many indexes slow down writes — each index is updated on INSERT/UPDATE
+- Unused indexes: find them with stats, drop them
+- Partial index example: CREATE INDEX ... WHERE status = 'ACTIVE'
+
+NOTE: the speaker assumed everyone knows what a B-tree index is — never
+defined it, just said "the default". Several attendees looked it up after.
+
+Partial recording gap here — approx 10 minutes missing.
+
+---
+
+Connection pooling
+
+Short section near the end. Basically: use a pool, don't open a connection
+per request. Mentioned pool sizing rule of thumb (a few times CPU count)
+and that exhausted pools look like timeouts to the application. Not much
+depth — "we'll do a full session on this later".
+
+---
+
+Caching
+
+Application-level caching discussion:
+- Cache read-heavy, rarely-changing data
+- Redis mentioned for session data and hot lookups
+- Cache invalidation called "the hard part" — TTLs as the pragmatic default
+- Stampede problem named, one sentence, no solution shown
+
+---
+
+Perf monitoring
+
+Very brief closing mention: enable slow query log, review it weekly,
+set up alerts on query latency dashboards. Tools named in passing only.
+
+(misc tangents in the recording: complaint about staging database size,
+short discussion of a migration tool nobody had used — skipped here, no
+training content)
+
+[END OF NOTES]

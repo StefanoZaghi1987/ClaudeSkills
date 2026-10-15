@@ -1,0 +1,75 @@
+[Fictional test fixture: all names, data, and references are invented.]
+[Training Recording Trace - Python Fundamentals]
+Date: 2024-02-10
+Duration: 30 minutes
+Instructor: Maria Rossi
+Participants: 12 junior developers
+
+[00:00] INSTRUCTOR: Buongiorno a tutti! Today we're covering Python fundamentals. This is really important because Python is the foundation for everything we'll do in the next modules.
+
+[00:02] INSTRUCTOR: Let's start with variables and data types. This is CRITICAL - you need to understand this perfectly. In Python, you don't need to declare variable types explicitly. For example:
+- name = "Giovanni" (string)
+- age = 25 (integer)  
+- height = 1.75 (float)
+- is_student = True (boolean)
+
+[00:05] PARTICIPANT: Do we need to use semicolons?
+
+[00:05] INSTRUCTOR: Great question! No, Python doesn't require semicolons at the end of lines. It uses indentation instead, which brings me to our next critical point...
+
+[00:06] INSTRUCTOR: Indentation in Python is EXTREMELY IMPORTANT. It's not just for readability - it defines code blocks. Always use 4 spaces or 1 tab consistently. For example:
+
+if age > 18:
+    print("Adult")
+    print("Can vote")
+else:
+    print("Minor")
+
+[00:10] INSTRUCTOR: Now, control structures. We have if-elif-else statements, which you just saw. We also have loops - for and while. Let me show you:
+
+for i in range(5):
+    print(i)
+
+while counter < 10:
+    print(counter)
+    counter += 1
+
+[00:13] PARTICIPANT: What about lists and dictionaries?
+
+[00:14] INSTRUCTOR: Good timing! Data structures are next. Lists are ordered collections:
+fruits = ["apple", "banana", "orange"]
+fruits.append("grape")
+print(fruits[0])  # prints "apple"
+
+Dictionaries store key-value pairs:
+student = {"name": "Marco", "age": 22, "course": "Python"}
+print(student["name"])
+
+[00:18] INSTRUCTOR: Let's talk about functions briefly. Functions help you organize code:
+
+def greet(name):
+    return f"Hello, {name}!"
+
+result = greet("Anna")
+
+[00:21] INSTRUCTOR: We also have modules and imports, but we'll cover those more deeply next week. Just know you can import functionality:
+import math
+print(math.sqrt(16))
+
+[00:24] INSTRUCTOR: Error handling - try-except blocks. Not super critical for beginners but good to know:
+
+try:
+    result = 10 / 0
+except ZeroDivisionError:
+    print("Cannot divide by zero")
+
+[00:27] INSTRUCTOR: Quick recap of the KEY POINTS:
+1. Variables and data types - remember Python is dynamically typed
+2. Indentation - absolutely critical, defines structure
+3. Control structures - if/else and loops
+4. Data structures - lists and dictionaries are most used
+5. Functions - for code organization
+
+[00:29] INSTRUCTOR: Practice these concepts tonight. They're the foundation for everything else. See you next session!
+
+[END OF RECORDING]
