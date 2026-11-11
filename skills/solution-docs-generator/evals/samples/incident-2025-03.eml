@@ -1,0 +1,20 @@
+From: Marco Neri <marco.neri@acme-components.example>
+To: Helpdesk <helpdesk@acme-components.example>
+Subject: R: Ticket 4711 - Etichette di spedizione non stampate
+Date: Wed, 12 Mar 2025 11:40:00 +0100
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+Ciao,
+
+il problema delle etichette è risolto. Dopo gli aggiornamenti di Windows di martedì il servizio
+LabelPrintService su PRN01 non era ripartito (tipo di avvio "Manuale"). L'applicazione mostrava
+comunque "Etichetta inviata alla stampante".
+
+Ho avviato il servizio e impostato il tipo di avvio "Automatico (avvio ritardato)". Le 37 etichette
+in coda sono state ristampate dal banco imballi alle 11:30.
+
+Per il futuro: dopo ogni riavvio di PRN01 verificare che il servizio sia in esecuzione.
+
+Marco

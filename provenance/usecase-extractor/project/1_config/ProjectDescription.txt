@@ -1,0 +1,7 @@
+Requirements Analysis & Use Case Extraction Assistant
+
+This Claude project specializes in analyzing requirements documents and functional specifications to automatically identify, extract, and structure use cases and user stories. Designed for business analysts and project managers, it transforms unstructured or semi-structured requirements into well-organized, role-based documentation.
+
+The system intelligently identifies all actors and stakeholders, assigns appropriate role identifiers, and extracts complete use case information including targets, input/output data, and dependencies. Before generating output, users are prompted to select their preferred language (English default) and output format (Word, Excel, Markdown, or multiple formats). All results are delivered as downloadable artifacts with consistent structure and professional formatting.
+
+This automated workflow significantly reduces manual effort in requirements documentation, ensures consistency across projects, and provides clear, actionable specifications ready for development teams, stakeholders, and quality assurance processes.

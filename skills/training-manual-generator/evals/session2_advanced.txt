@@ -1,0 +1,83 @@
+[Fictional test fixture: all names, data, and references are invented.]
+[Training Recording Trace - React Course, Session 2 of 3: Advanced Patterns]
+Date: 2024-04-10
+Duration: 90 minutes
+Instructor: Elena Ricci
+Participants: 10 frontend developers
+
+[00:00] INSTRUCTOR: Session two. Today is the heavy one: hooks in depth, the context API, and performance optimization. Last week's basics — components, props, state, lifting state up — are assumed from here on.
+
+[00:05] INSTRUCTOR: Hooks first, and I want this REALLY clear because it trips everyone. Two rules of hooks:
+1. Only call hooks at the top level of your component — never inside loops, conditions, or nested functions
+2. Only call hooks from React functions — components or custom hooks
+
+Break these and the hook order breaks, and React cannot track state between renders.
+
+[00:15] INSTRUCTOR: The three hooks you will use daily:
+
+useState — component memory, you know it from session one.
+
+useEffect — synchronize with anything outside React: subscriptions, timers, the document title, fetching data:
+
+useEffect(() => {
+  document.title = `Count: ${count}`;
+}, [count]);
+
+The dependency array is the whole game:
+- No array: runs after every render
+- Empty array: runs once after the first render
+- With values: re-runs when a value changes
+
+Forget a dependency and the effect sees stale values. This is the number one source of bugs in React codebases.
+
+useContext — read a value from a context provider without prop drilling. Speaking of which...
+
+[00:35] INSTRUCTOR: Context solves a specific problem: passing data through many layers of components that do not use it themselves. Theme, current user, language — good context candidates. Create once, provide at the top, consume anywhere:
+
+const ThemeContext = createContext('light');
+
+<ThemeContext.Provider value="dark">...</ThemeContext.Provider>
+
+const theme = useContext(ThemeContext);
+
+Warning: context is not a state manager. If you find yourself putting rapidly-changing data in context, stop — it re-renders every consumer.
+
+[00:50] PARTICIPANT: When should we just use props instead of context?
+
+[00:50] INSTRUCTOR: Default to props. Context only when the same prop is drilled through three or more layers. Props make the data flow visible; context hides it.
+
+[00:55] INSTRUCTOR: Custom hooks — extract reusable logic into a function whose name starts with "use":
+
+function useWindowWidth() {
+  const [width, setWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const onResize = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return width;
+}
+
+Note the cleanup function returned from useEffect — always clean up subscriptions and listeners, or you leak them.
+
+[01:05] INSTRUCTOR: Performance. React re-renders by default when a parent renders — children render too, even if their props did not change. Usually fine; sometimes not.
+
+Tools, in the order you should reach for them:
+1. useMemo — cache an expensive computed value between renders
+2. useCallback — cache a function reference between renders
+3. React.memo — skip re-rendering a component when its props are equal
+
+Measure with the React Developer Tools profiler BEFORE adding any of these. Premature memoization adds complexity for nothing — most components render in microseconds.
+
+[01:20] INSTRUCTOR: List rendering deserves a mention: every item in a list needs a stable, unique key from your data — never the array index if the list can reorder. Index keys cause state to attach to the wrong row.
+
+[01:25] INSTRUCTOR: Recap:
+1. Two rules of hooks — top level, React functions only
+2. useEffect synchronizes with the outside world; get the dependency array right
+3. Context for truly global, slowly-changing values; props otherwise
+4. Custom hooks to share logic, with proper cleanup
+5. Measure before memoizing
+
+Next week: we build a complete application using everything from both sessions. Bring your laptops.
+
+[END OF RECORDING]

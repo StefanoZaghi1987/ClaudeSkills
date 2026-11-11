@@ -1,0 +1,6 @@
+# Every text file is LF in the index and in every checkout, whatever core.autocrlf says:
+# the runner hashes its own scripts, and the release zips ship the bytes as checked out.
+* text=auto eol=lf
+*.xlsx binary
+# The provenance prompts are kept byte-for-byte as they were written, CRLF included.
+provenance/** -text

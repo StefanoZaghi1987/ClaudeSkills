@@ -1,0 +1,24 @@
+From: Marco Neri <marco.neri@acme-components.example>
+To: Helpdesk <helpdesk@acme-components.example>
+Subject: R: Ticket 5120 - Elenco documenti vuoto in ShipLabelApp dopo il rilascio
+Date: Thu, 08 Oct 2026 16:05:00 +0200
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+Ciao,
+
+chiudo il ticket 5120. Dopo il rilascio del 6 ottobre 2026 l'elenco dei documenti di trasporto in
+ShipLabelApp era vuoto per tutti, in produzione. L'applicazione non dava errori.
+
+Causa: nel pacchetto di rilascio mancava lo script della vista ACM_VIEW_LABELS, che era stata
+modificata in test (nuova colonna con il peso del collo) ma non in produzione. Il back-end leggeva
+la vista vecchia e il filtro sulla nuova colonna non restituiva righe.
+
+Soluzione: ho eseguito in produzione lo script aggiornato di ACM_VIEW_LABELS alle 15:40; l'elenco
+è tornato subito visibile, senza riavviare nulla.
+
+Lezione: da ora la checklist di rilascio comprende la verifica che gli script delle viste ACM_*
+siano allineati tra test e produzione.
+
+Marco

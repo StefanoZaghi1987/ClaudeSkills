@@ -1,0 +1,376 @@
+{
+  "skill_name": "solution-docs-generator",
+  "eval_notes": "All sample material is fictional (ShipLabelApp of ACME Components). evals/samples/golden/ holds the reference master: the expected result of eval-1, which the self-test renders and gates, and the base of the revision case. Cases map to the rules they test: eval-1 cross-checking every kind of source, the card structure and the credential rule; eval-2 the user-manual type in English from people-knowledge only; eval-3 the essential depth of a configuration guide in PDF; eval-4 the no-source guard; eval-5 the interactive checkpoint with a conflict; eval-6 a Whisper JSON transcript with anonymous speakers; eval-7 a plain-text transcript with no speakers and no times (anchors in the coverage map); eval-8 a documentation set from one analysis (distribution matrix, one card prefix per document, cross-references checked with --set); eval-9 the revision flow (stable IDs, version, revision row, --previous); eval-10 Italian sources to an English document; eval-11 a language without a pack (Portuguese); eval-12 the scheduled-process variant (one audience, no Part A); eval-13 the solution sheet; eval-14 the maintenance procedure; eval-15 the profile-driven house style (logo, form cover, 'Pag. N di M'); eval-16 a German document in Markdown and DOCX with the German pack; eval-17 a regeneration (same version, not a revision) and the never-overwrite rule at delivery; eval-18 a continuation (the user manual joins a set whose troubleshooting manual exists: analysis reused or rebuilt from the old master as a source, a free card prefix, --set against the existing master); eval-19 the organization's own document type (a type file given with the request: chapters and rules from it, the gate with --type-def). Run the parallel case (eval-8: four documents, written by workers where the environment has them) both in Claude Code and on claude.ai: the assertions are the same, only the speed differs.",
+  "evals": [
+    {
+      "id": "eval-1",
+      "name": "Troubleshooting manual from every kind of source (Italian, Word, automatic)",
+      "description": "Transcript with systematic speech-to-text errors, chat with the correct names, code with secrets and a hidden behaviour, a historical mail and outdated notes. Tests cleaning, cross-checking, conflicts, the card structure and the credential rule.",
+      "prompt": "Genera il manuale di troubleshooting di ShipLabelApp in Word, in italiano, guida completa per gli operatori del magazzino spedizioni e per l'ICT. Fonti: la trascrizione della sessione registrata, i messaggi che ho scritto nella chat durante la sessione, il codice sorgente, la mail del ticket 4711 e gli appunti di installazione del 2023. Modalità automatica.",
+      "files": [
+        "evals/samples/session-transcript.vtt",
+        "evals/samples/session-chat.txt",
+        "evals/samples/incident-2025-03.eml",
+        "evals/samples/old-notes.md",
+        "evals/samples/shiplabelapp-src/README.md",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/appsettings.json",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/Controllers/LabelController.cs",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/Services/LabelService.cs",
+        "evals/samples/shiplabelapp-src/database/ACM_VIEW_LABELS.sql"
+      ],
+      "assertions": [
+        "The output is a .docx in Italian whose file name follows '<Subject> - troubleshooting - manuale operativo - v1.0.docx' (or the profile's convention)",
+        "The cover carries title, version and date, classification 'guida completa', audience (operators and ICT) and the kinds of source used",
+        "The first chapter is a summary with an identity table and a quick symptom index whose card IDs all exist in the document",
+        "The document has a Part A for warehouse operators (good-use rules, what to do when, how to report a problem) and a Part B for ICT (architecture, concepts, diagnosis method, cards, procedures)",
+        "Transcription errors are corrected everywhere: ShipLabelApp, Orbit Data API, LabelPrintService, ACM_USER_PRINTERS, ACM_VIEW_LABELS; the forms 'ship level app', 'lable print servis' and 'orbit data appy' do not appear",
+        "A card covers 'Etichetta inviata alla stampante' with nothing printed, naming a missing row in ACM_USER_PRINTERS and a stopped LabelPrintService as causes",
+        "A known-behaviours table explains, from the code, that a print request is reported as queued even when the user has no printer, with the event logged only at Debug level, and gives a workaround",
+        "A card or rule covers the 50-label limit and the message 'Troppe etichette'",
+        "A historical case dated March 2025 with ticket 4711 describes the stopped service after Windows updates, the restart and the delayed automatic start",
+        "The session timeout is 30 minutes (code and session); the 60 minutes of the 2023 notes is not presented as current, and the notes are named as superseded or as a resolved conflict",
+        "A deadlines table lists the Entra ID client secret expiring on 15/09/2027 and what happens if it expires",
+        "The Christmas-lunch digression does not appear in the document",
+        "Neither the service-account password nor the client secret value appears anywhere in the document; the document says credentials are kept in the company password manager",
+        "The plain-text credentials found in appsettings.json are reported to the user in the conversation as a security finding, not in the document",
+        "Every cited ID (cards, known behaviours, queries) is defined, and every procedure or section cited exists (check_doc.py reports no errors)"
+      ]
+    },
+    {
+      "id": "eval-2",
+      "name": "User manual in English Markdown from transcript and chat only",
+      "description": "Only people-knowledge is available: no code. Tests the user-manual structure, language choice, open items instead of invented screens, and term correction from the chat.",
+      "prompt": "Write an English user manual for ShipLabelApp, the warehouse label-printing app, from the recorded session transcript and the chat messages. Markdown, please.",
+      "files": [
+        "evals/samples/session-transcript.vtt",
+        "evals/samples/session-chat.txt"
+      ],
+      "assertions": [
+        "The output is a Markdown file in English; Italian messages shown by the application are quoted as they appear",
+        "The structure follows the user-manual type: introduction (purpose, users, environments), access and session, the label-printing tasks, good practices, what to do when, appendices with a glossary",
+        "Printing labels is described as numbered steps with the expected result",
+        "The session expiry after 30 minutes of inactivity and the advice to log out and in after a long pause are stated",
+        "The 50-label limit is stated with what to do (split the print)",
+        "Screens, buttons or menu labels not present in the sources are not invented: missing details are marked as open items and listed in the delivery message",
+        "Architecture internals (servers, logs, view names) are absent or limited to what a user needs, since this is a user manual",
+        "Correct names are used (ShipLabelApp, Microsoft Entra ID), not the transcription errors",
+        "The delivery message names the sources used and says that no code was available to verify behaviour"
+      ]
+    },
+    {
+      "id": "eval-3",
+      "name": "Essential configuration and maintenance guide (Italian, PDF)",
+      "description": "Tests the configuration-guide type at essential depth: short procedures with prerequisites and verification, no internals, no secrets.",
+      "prompt": "Prepara una guida essenziale di configurazione e manutenzione di ShipLabelApp in PDF, in italiano: abilitare la stampa per un nuovo utente, riavviare il LabelPrintService, rinnovare il client secret su Entra ID. Usa trascrizione, codice e la mail del ticket.",
+      "files": [
+        "evals/samples/session-transcript.vtt",
+        "evals/samples/session-chat.txt",
+        "evals/samples/incident-2025-03.eml",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/appsettings.json",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/Services/LabelService.cs"
+      ],
+      "assertions": [
+        "The output is a PDF in Italian, classified as 'guida essenziale' in its header",
+        "There are three self-contained procedures: printer for a new user (row in ACM_USER_PRINTERS), restart of LabelPrintService on PRN01 (with delayed automatic start), renewal of the client secret before 15/09/2027",
+        "Each procedure has prerequisites, numbered steps and a verification step",
+        "There is no code-reference appendix and no diagnosis-method chapter, as the depth is essential",
+        "No password or client secret value appears; the secret renewal procedure says where the new value is configured without writing it",
+        "The table of contents shows page numbers"
+      ]
+    },
+    {
+      "id": "eval-4",
+      "name": "No source material",
+      "description": "Tests the guard against writing from general knowledge.",
+      "prompt": "Scrivimi il manuale di troubleshooting della nostra app di magazzino.",
+      "files": [],
+      "assertions": [
+        "The skill asks, in one message, for the sources (transcript, documents, code, mails) and for what it cannot infer (which application is meant, the audience); depth and format are not asked but stated as defaults (complete guide, Word) that the user can change",
+        "No document is produced and no content about the application is invented"
+      ]
+    },
+    {
+      "id": "eval-5",
+      "name": "Interactive mode surfaces conflicts at the checkpoint",
+      "description": "Outdated notes contradict the code. Tests the checkpoint: sources, outline, and the conflict asked as a question before writing.",
+      "prompt": "Modalità interattiva: manuale di troubleshooting di ShipLabelApp, guida completa in Word. Fonti: gli appunti di installazione del 2023 e il codice sorgente.",
+      "files": [
+        "evals/samples/old-notes.md",
+        "evals/samples/shiplabelapp-src/README.md",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/appsettings.json",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/Controllers/LabelController.cs",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/Services/LabelService.cs",
+        "evals/samples/shiplabelapp-src/database/ACM_VIEW_LABELS.sql"
+      ],
+      "assertions": [
+        "Before writing, the skill presents a source inventory with IDs and a proposed outline with an ID scheme for cards",
+        "The checkpoint names the conflict on the session duration (60 minutes in the 2023 notes, 30 minutes in the configuration) and asks which applies, or states that the code prevails and why",
+        "The checkpoint says that no session transcript is available, so practice and history may be missing, and asks at most four questions",
+        "The skill waits for the answers before generating the document",
+        "The security finding (plain-text credentials in appsettings.json) is mentioned without quoting any value"
+      ]
+    },
+    {
+      "id": "eval-6",
+      "name": "Whisper JSON transcript with anonymous speakers",
+      "description": "The session comes as Whisper/WhisperX JSON with SPEAKER_00 labels instead of a Teams VTT. Tests format detection by content, speaker renaming and the same cleaning as eval-1.",
+      "prompt": "Manuale di troubleshooting di ShipLabelApp, guida completa, Word. La trascrizione l'ho fatta con Whisper (file JSON): lo speaker SPEAKER_00 sono io, Marco Neri. Fonti: trascrizione, chat della sessione e codice sorgente. Modalità automatica.",
+      "files": [
+        "evals/samples/session-whisper.json",
+        "evals/samples/session-chat.txt",
+        "evals/samples/shiplabelapp-src/README.md",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/appsettings.json",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/Controllers/LabelController.cs",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/Services/LabelService.cs",
+        "evals/samples/shiplabelapp-src/database/ACM_VIEW_LABELS.sql"
+      ],
+      "assertions": [
+        "The JSON transcript is read as a transcript (turns with times), not as a configuration file, and the inventory names it as the session transcript",
+        "The speaker is named Marco Neri wherever the transcript is quoted or summarized; 'SPEAKER_00' does not appear in the document",
+        "The coverage map cites times of the session (hh:mm:ss)",
+        "Transcription errors are corrected as in eval-1: ShipLabelApp, Orbit Data API, LabelPrintService, ACM_USER_PRINTERS, ACM_VIEW_LABELS",
+        "The document follows the troubleshooting structure with Part A and Part B and passes check_doc.py with no errors"
+      ]
+    },
+    {
+      "id": "eval-7",
+      "name": "Plain-text transcript without speakers or times",
+      "description": "A transcript as a plain .txt (Whisper text output or a dictated note): no speakers, no timestamps. Tests that it is not collapsed into one line and that the coverage map uses anchors.",
+      "prompt": "Write the ShipLabelApp troubleshooting manual in Italian, Word, from this plain-text transcript of my session and the chat messages. Automatic mode.",
+      "files": [
+        "evals/samples/session-plain.txt",
+        "evals/samples/session-chat.txt"
+      ],
+      "assertions": [
+        "The transcript is normalized into several anchored chunks ([¶1], [¶2], …), not one single line",
+        "The coverage map lists the topics with their ¶ anchors as positions, and the Christmas-lunch digression as excluded",
+        "No speaker name is invented for the transcript",
+        "The delivery message says that no code was available, so behaviour statements needing code confirmation are open items",
+        "The 50-label limit, the 30-minute session and the printer table ACM_USER_PRINTERS are present with their correct spellings"
+      ]
+    },
+    {
+      "id": "eval-8",
+      "name": "Documentation set from one analysis",
+      "description": "All documents for one solution. Tests the set: one analysis, the distribution matrix at the checkpoint, one card prefix per document, cross-references instead of repetition, Related documents, check_doc --set.",
+      "prompt": "Voglio tutta la documentazione di ShipLabelApp in italiano, Word: manuale utente, manuale di configurazione, manuale di troubleshooting e scheda della soluzione. Fonti: trascrizione, chat, codice, la mail del ticket 4711 e gli appunti del 2023.",
+      "files": [
+        "evals/samples/session-transcript.vtt",
+        "evals/samples/session-chat.txt",
+        "evals/samples/incident-2025-03.eml",
+        "evals/samples/old-notes.md",
+        "evals/samples/shiplabelapp-src/README.md",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/appsettings.json",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/Controllers/LabelController.cs",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/Services/LabelService.cs",
+        "evals/samples/shiplabelapp-src/database/ACM_VIEW_LABELS.sql"
+      ],
+      "assertions": [
+        "Sources are extracted and analysed once; the checkpoint shows the four documents with a distribution matrix (topic → document) and a distinct ID prefix per document",
+        "Four files are delivered, each with the type's chapters in order and the Italian chapter names of the language pack",
+        "The printer configuration for a new user is a procedure in the configuration guide; the troubleshooting card on missing labels points to it by document and section instead of repeating the steps",
+        "Each document lists the other three under 'Documenti collegati'",
+        "check_doc.py --set reports no errors for any of the four masters",
+        "The solution sheet fits in one or two pages and carries no procedure and no card",
+        "The client secret deadline (15/09/2027) appears in the solution sheet and in the configuration guide, with the same date"
+      ]
+    },
+    {
+      "id": "eval-9",
+      "name": "Revision 1.0 → 1.1 with a new incident",
+      "description": "The previous master exists; a new mail documents an incident after a release. Tests the revision flow: only the new source is analysed, IDs are stable, version and revision row, check_doc --previous.",
+      "prompt": "Aggiorna il manuale di troubleshooting di ShipLabelApp (allego la versione 1.0, il master .md) con la mail del ticket 5120 di ottobre. Nuova versione 1.1, Word.",
+      "files": [
+        "evals/samples/golden/ShipLabelApp - troubleshooting - manuale operativo.md",
+        "evals/samples/incident-2026-10.eml"
+      ],
+      "assertions": [
+        "The skill treats the request as a revision: it loads the 1.0 master and analyses only the new mail",
+        "The new version is 1.1, with a revisions row that says what changed (ticket 5120, release check of the ACM_* views)",
+        "Every card, known behaviour and query ID of version 1.0 keeps its number; the new content takes new numbers or extends existing cards",
+        "A historical case dated October 2026 with ticket 5120 describes the empty document list, the missing view script and the lesson for the release checklist",
+        "check_doc.py --previous against the 1.0 master reports no errors",
+        "The file is delivered as version 1.1 without overwriting the 1.0 file"
+      ]
+    },
+    {
+      "id": "eval-10",
+      "name": "Italian sources, English document",
+      "description": "Every source is Italian, the document is English. Tests translation of prose with identifiers, UI messages and labels kept in the original, the English pack, and the bilingual glossary.",
+      "prompt": "Write the ShipLabelApp troubleshooting manual in English (Word) for our new support partner. The sources are in Italian: transcript, chat, code, the ticket 4711 mail.",
+      "files": [
+        "evals/samples/session-transcript.vtt",
+        "evals/samples/session-chat.txt",
+        "evals/samples/incident-2025-03.eml",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/Services/LabelService.cs",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/Controllers/LabelController.cs"
+      ],
+      "assertions": [
+        "Chapter names, cover labels, card labels, captions and callout titles are the English ones of the language pack (e.g. 'Troubleshooting cards', 'Symptom', 'Table 1 –')",
+        "The application's messages stay in Italian as they appear on screen ('Etichetta inviata alla stampante', 'Troppe etichette'), with an English translation beside them at first use",
+        "Identifiers stay unchanged: ACM_USER_PRINTERS, ACM_VIEW_LABELS, LabelPrintService, PRN01",
+        "Dates follow the English pack's format",
+        "The open items use the English marker [to be confirmed: …]"
+      ]
+    },
+    {
+      "id": "eval-11",
+      "name": "A language without a pack (Portuguese)",
+      "description": "Tests the fallback for a language the skill does not ship: a pack written in the work folder from en.json, passed with --lang-pack, and offered at delivery.",
+      "prompt": "Preciso do manual do utilizador do ShipLabelApp em português, em Word, a partir da transcrição e do chat.",
+      "files": [
+        "evals/samples/session-transcript.vtt",
+        "evals/samples/session-chat.txt"
+      ],
+      "assertions": [
+        "The skill writes a Portuguese language pack (pt.json) in the work folder, with every key of en.json, and renders with --lang-pack",
+        "Chapter names, captions ('Tabela', 'Figura') and the page label are Portuguese in the delivered file",
+        "The user-facing messages of the skill are in Portuguese",
+        "The delivery message offers to add the Portuguese pack to the profile or to the skill"
+      ]
+    },
+    {
+      "id": "eval-12",
+      "name": "Scheduled process: troubleshooting manual of a nightly job",
+      "description": "A PowerShell job and its Task Scheduler export, no users. Tests the scheduled-process variant: one audience, no Part A, schedule and processing logic, its own card prefix.",
+      "prompt": "Manuale di troubleshooting del job notturno ArchiveShippedLabels (archivio delle etichette di ShipLabelApp): ti allego lo script e l'esportazione dell'attività pianificata. Italiano, Word, modalità automatica.",
+      "files": [
+        "evals/samples/label-archive-job/ArchiveShippedLabels.ps1",
+        "evals/samples/label-archive-job/ArchiveShippedLabels-task.xml"
+      ],
+      "assertions": [
+        "The front matter has type troubleshooting and variant scheduled-process; the document has no Part A and one audience (ICT)",
+        "A schedule chapter states daily at 02:30 on PRN01 under svc_labels, with how to run it by hand; the processing logic explains the 90-day retention and the monthly archive folders",
+        "Cards cover at least: the archive share not reachable (exit code 2, log line 'ERROR archive share not reachable'), files locked and skipped, the job not run (missed trigger, StartWhenAvailable)",
+        "The log path C:\\Logs\\LabelArchive and the one-file-per-run naming appear in the diagnosis method",
+        "Card IDs use a letter from the job's name that no other ID family uses (not S, A, Q, P, U or C), declared first in the front matter's ids",
+        "check_doc.py reports no chapter out of the order of the scheduled-process variant"
+      ]
+    },
+    {
+      "id": "eval-13",
+      "name": "Solution sheet",
+      "description": "Tests the solution-sheet type: one or two pages, identity facts only, criticality never estimated.",
+      "prompt": "Mi serve la scheda della soluzione di ShipLabelApp per il censimento degli strumenti, in italiano, PDF. Usa trascrizione, chat e README.",
+      "files": [
+        "evals/samples/session-transcript.vtt",
+        "evals/samples/session-chat.txt",
+        "evals/samples/shiplabelapp-src/README.md"
+      ],
+      "assertions": [
+        "The chapters are those of the solution-sheet type with the Italian pack's names (Scopo, Utenti e utilizzo, Criticità, Referenti, …)",
+        "The document is one or two pages, without table of contents, procedures or cards",
+        "Criticality is asked at the checkpoint or marked as an open item, never estimated by the agent",
+        "Environments (APP01 production, APPTEST01 test, PRN01) and the client secret deadline 15/09/2027 are present"
+      ]
+    },
+    {
+      "id": "eval-14",
+      "name": "Maintenance procedure: renewing the client secret",
+      "description": "Tests the maintenance-procedure type: one task, prerequisites, affected items with deadlines, steps, verification, rollback, what breaks if skipped, no secret value.",
+      "prompt": "Scrivi la procedura di manutenzione per il rinnovo del client secret di ShipLabelApp su Entra ID, in italiano, Word. Fonti: trascrizione e appsettings.json.",
+      "files": [
+        "evals/samples/session-transcript.vtt",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/appsettings.json"
+      ],
+      "assertions": [
+        "The chapters are those of the maintenance-procedure type in order: Introduzione, Prerequisiti, Elementi interessati e scadenze, Procedura, Verifica, Ripristino in caso di problemi, Cosa succede se la procedura non viene eseguita",
+        "The deadline 15/09/2027 is in the affected-items table",
+        "The steps say where the new secret is configured in the back-end without writing any secret value; the old value in appsettings.json is reported as a security finding in the conversation only",
+        "A warning callout precedes the step that replaces the secret in production",
+        "If skipped: nobody can log in after expiry"
+      ]
+    },
+    {
+      "id": "eval-15",
+      "name": "Profile-driven house style",
+      "description": "The profile asks for a logo in header and cover, a form cover, custom header and footer texts and 'Pag. N di M'. Tests the render-style keys and the cover fields from the profile.",
+      "prompt": "Manuale utente di ShipLabelApp in italiano, Word, con il profilo documentale allegato. Fonti: trascrizione e chat. Modalità automatica.",
+      "files": [
+        "evals/samples/docs-profile-example.md",
+        "evals/samples/acme-logo.png",
+        "evals/samples/session-transcript.vtt",
+        "evals/samples/session-chat.txt"
+      ],
+      "assertions": [
+        "The skill says which profile is in use",
+        "The cover shows the logo and the fields of the profile (Tipo documento, Redatto da, Versione, Stato documento BOZZA, Riservatezza INTERNO, Referente) as a form table",
+        "Every page after the cover has the logo and 'ShipLabelApp – Manuale utente – ACME Components' in the header, and 'Documento interno – ICT' with 'Pag. N di M' in the footer",
+        "The file name follows the profile's naming convention"
+      ]
+    },
+    {
+      "id": "eval-16",
+      "name": "German document, Markdown and Word",
+      "description": "Two formats and the German pack. Tests that both outputs come from one master and that every fixed text is German.",
+      "prompt": "Erstelle das Fehlerbehebungshandbuch für ShipLabelApp auf Deutsch, als Word und als Markdown. Quellen: Transkript, Chat, Quellcode. Automatischer Modus.",
+      "files": [
+        "evals/samples/session-transcript.vtt",
+        "evals/samples/session-chat.txt",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/Services/LabelService.cs",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/appsettings.json"
+      ],
+      "assertions": [
+        "One master .md with lang de; the .docx and the .md are rendered from it",
+        "Chapter names, card labels (Symptom, Mögliche Ursachen, …), captions ('Tabelle 1 –'), the contents title ('Inhalt') and the page label ('Seite') are German",
+        "Dates follow the German pack's format (dd.mm.yyyy)",
+        "The Italian application messages stay as they appear on screen, with a German translation at first use"
+      ]
+    },
+    {
+      "id": "eval-17",
+      "name": "Never overwrite at delivery",
+      "description": "A file with the target name already exists in the output folder. Tests the delivery rule.",
+      "prompt": "Rigenera da capo il manuale di troubleshooting di ShipLabelApp, stessa versione 1.0, in Word nella stessa cartella di prima, modalità automatica. Fonti: trascrizione, chat, codice.",
+      "files": [
+        "evals/samples/session-transcript.vtt",
+        "evals/samples/session-chat.txt",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/Services/LabelService.cs"
+      ],
+      "assertions": [
+        "The request is treated as a regeneration: the version stays 1.0 and no revision row is added",
+        "When 'ShipLabelApp - troubleshooting - manuale operativo - v1.0.docx' already exists in the output folder, the new file is saved with a _2 suffix (automatic mode) and the existing file is untouched",
+        "The delivery message names the suffixed file and says why"
+      ]
+    },
+    {
+      "id": "eval-18",
+      "name": "Continuation: the user manual joins an existing set",
+      "description": "The troubleshooting manual v1.0 exists (its master is attached); the user asks for the user manual of the same solution. Tests the continuation flow: neither a revision nor a regeneration, analysis reuse or rebuild from the old master as a source, a free card prefix, --set against the existing master.",
+      "prompt": "Adesso mi serve il manuale utente di ShipLabelApp in italiano, Word: il manuale di troubleshooting v1.0 l'abbiamo già fatto (allego il master). Fonti: la sessione registrata e la chat; riusa quello che abbiamo già.",
+      "files": [
+        "evals/samples/golden/ShipLabelApp - troubleshooting - manuale operativo.md",
+        "evals/samples/session-transcript.vtt",
+        "evals/samples/session-chat.txt"
+      ],
+      "assertions": [
+        "The request is treated as a continuation: a new document of the set at version 1.0, not a revision (no 1.1 of the troubleshooting manual) and not a regeneration",
+        "The existing analysis is reused when its work folder survives, or the previous master is read as a source (an SRC-nn of its own); the delivery message says which",
+        "The user manual follows the user-manual chapters with the Italian pack's names; the card prefix U (or another letter no existing document of the set uses) is declared first in ids",
+        "check_doc.py --set against the troubleshooting master reports no errors, and the troubleshooting manual is listed under 'Documenti collegati'",
+        "The delivery offers to add the user manual to the 'Documenti collegati' of the old master, and does not modify it silently",
+        "The file name follows the user-manual convention with v1.0"
+      ]
+    },
+    {
+      "id": "eval-19",
+      "name": "A document type of the organization's own (release checklist)",
+      "description": "The organization defines its own document type in a file given with the request. Tests the custom-type path: chapters and rules from the type file, pack chapter names, the gate run with --type-def.",
+      "prompt": "Mi serve la release checklist della versione 1.1 di ShipLabelApp, in italiano, Word. È un tipo di documento nostro, definito dal file che allego. Fonti: trascrizione, chat e codice sorgente.",
+      "files": [
+        "evals/samples/custom-type/release-checklist.md",
+        "evals/samples/session-transcript.vtt",
+        "evals/samples/session-chat.txt",
+        "evals/samples/shiplabelapp-src/README.md",
+        "evals/samples/shiplabelapp-src/src/ShipLabelApp.Api/Services/LabelService.cs"
+      ],
+      "assertions": [
+        "The type file is read as the definition of the document: its six chapters in order, with the Italian pack's names (Introduzione, Prerequisiti, Procedura, Verifica, Ripristino in caso di problemi, Documentazione e riferimenti)",
+        "The front matter carries type release-checklist and toc false; the procedure steps are numbered with the expected result of each, and a warning callout precedes the stop of a service",
+        "The gate is run with --type-def on the type file and reports no errors; the delivery message names the type file used",
+        "The file name follows the type file's rule: 'ShipLabelApp - release checklist - v1.1.docx'",
+        "Content comes from the sources (transcript, chat, code): no invented step; anything the sources do not settle carries the open-item marker"
+      ]
+    }
+  ]
+}

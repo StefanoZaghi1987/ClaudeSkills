@@ -1,0 +1,6 @@
+ID,Type,Requirement,Priority
+REQ-101,Functional,"Members must be authenticated before booking a class",Must have
+REQ-102,Functional,"A member can reserve a spot in a class up to 7 days in advance",Must have
+REQ-103,Functional,"The system sends a confirmation email when a reservation is made",Must have
+REQ-104,Functional,"The front desk can view the class roster and mark no-shows",Should have
+REQ-105,Non-functional,"The class roster loads within 2 seconds",

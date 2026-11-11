@@ -1,0 +1,13 @@
+Allora, registro questa sessione per documentare la ship level app, cioè l'applicazione con cui il magazzino stampa le etichette di spedizione partendo dai documenti di trasporto. La usano gli operatori del magazzino spedizioni, tutti i giorni, sia dai PC del banco imballi sia dai palmari. Si entra con l'account aziendale, quindi con il login Microsoft, Entra ID.
+
+Dal punto di vista dell'architettura c'è un front-end React e un back-end ASP.NET Core che gira su IIS sul server APP01 in produzione e su APPTEST01 in test. Il back-end non legge mai direttamente il database: passa sempre dalla orbit data appy, cioè le API del gestionale OrbitERP. Per parlare con la orbit data appy usa un'utenza di servizio, svc labels. Le credenziali sono nel password manager aziendale, non le scrivo qui. La sessione verso le API scade dopo trenta minuti di inattività, quindi dopo una pausa lunga conviene uscire e rientrare.
+
+La stampa vera e propria la fa il lable print servis, un servizio Windows che gira sul server PRN01. Il back-end gli manda il PDF dell'etichetta e il nome della stampante. La stampante si prende dalla tabella acm user printers, una riga per utente. Qui c'è una cosa importante: se un utente non ha la stampante configurata, l'applicazione dice comunque "Etichetta inviata alla stampante", ma non esce niente. È capitato più volte con gli utenti nuovi. Quindi la prima cosa da controllare quando non esce niente è la tabella delle stampanti.
+
+Le etichette da stampare le legge dalla vista acm view labels, che unisce i documenti di trasporto con i colli. Se la vista non è aggiornata dopo un rilascio, l'elenco dei documenti resta vuoto. I log dell'applicazione sono in C:\Logs\ShipLabelApp sul server, un file al giorno. Del print service ci sono i log in C:\Logs\LabelPrintService su PRN01.
+
+Ah, una parentesi: domani ricordiamoci di prenotare la sala per il pranzo di Natale, che l'anno scorso eravamo in ritardo. Torniamo a noi. Un caso storico: a marzo 2025, dopo gli aggiornamenti di Windows, non usciva più nessuna etichetta. Il lable print servis era fermo, non era ripartito dopo il riavvio. L'abbiamo riavviato e messo in avvio automatico ritardato. Era il ticket 4711.
+
+Altra cosa: non si possono stampare più di cinquanta etichette per volta, il back-end rifiuta la richiesta con "Troppe etichette". In quel caso bisogna dividere la stampa. Scadenze: il client secret dell'app registrata su Entra ID scade il 15 settembre 2027. Se scade, nessuno riesce più ad accedere. Va rinnovato prima e aggiornato nella configurazione del back-end.
+
+Per segnalare un problema bisogna indicare l'ora, l'utente, il numero del documento di trasporto e il messaggio che compare. Senza l'ora è difficile trovare l'errore nei log.

@@ -1,0 +1,71 @@
+[Fictional test fixture: all names, data, and references are invented.]
+[Training Recording Trace - React Course, Session 1 of 3: React Basics]
+Date: 2024-04-03
+Duration: 75 minutes
+Instructor: Elena Ricci
+Participants: 10 frontend developers
+
+[00:00] INSTRUCTOR: Welcome to the first of three sessions on React. Today we cover the foundations: components, props, and state. Sessions two and three build on today, so make sure these basics are solid.
+
+[00:04] INSTRUCTOR: A React application is built from components. A component is a JavaScript function that returns markup — JSX:
+
+function Welcome() {
+  return <h1>Hello, world</h1>;
+}
+
+Components let you split the UI into independent, reusable pieces. Think of them as custom building blocks: buttons, forms, page sections.
+
+[00:12] INSTRUCTOR: JSX looks like HTML but it is JavaScript. Two rules to remember:
+- Return a single root element from every component
+- Class becomes className, for becomes htmlFor
+
+[00:20] PARTICIPANT: Can we put two elements side by side without a wrapper?
+
+[00:20] INSTRUCTOR: Yes — use a fragment, written as <></>. It groups children without adding an extra node to the page.
+
+[00:25] INSTRUCTOR: Now props — how data flows into a component. Props are read-only inputs passed from parent to child:
+
+function Welcome(props) {
+  return <h1>Hello, {props.name}</h1>;
+}
+
+<Welcome name="Sara" />
+
+Key points about props:
+- Props flow one way: parent to child, never back up
+- A component must never modify its own props
+- Props can be anything: strings, numbers, functions, even other components
+
+Passing functions as props is how children communicate back to parents — the parent hands down a callback, the child calls it. We will use this pattern constantly in the project session.
+
+[00:40] INSTRUCTOR: State is a component's own memory — data the component owns and can change over time. Props come from outside; state lives inside:
+
+const [count, setCount] = useState(0);
+
+return <button onClick={() => setCount(count + 1)}>{count}</button>;
+
+State rules:
+- Changing state re-renders the component
+- Never modify state directly — always use the setter function
+- State is private to the component that owns it
+
+[00:55] PARTICIPANT: What happens if two components need the same state?
+
+[00:55] INSTRUCTOR: Great question — that is the "lifting state up" pattern. Move the state to the closest common parent and pass it down as props to both children. Write this down; it is the answer to half of all React design questions.
+
+[01:02] INSTRUCTOR: Let me show lifting state up concretely. Two inputs, one parent holding a shared filter value, both children receive it via props. [Walks through a 10-minute live example]
+
+Key takeaways from the example:
+- The parent owns the state
+- Children stay "dumb" — they receive values and callbacks via props
+- This keeps data flow predictable and debuggable
+
+[01:15] INSTRUCTOR: Recap of today:
+1. Components are functions returning JSX
+2. Props pass data down, parent to child, read-only
+3. State is private, changeable memory — always via setters
+4. Shared state goes to the common parent (lifting state up)
+
+Next session: hooks in depth, context, and performance. Please rebuild today's example from scratch once before then.
+
+[END OF RECORDING]

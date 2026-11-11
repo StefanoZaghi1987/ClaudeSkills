@@ -1,0 +1,8 @@
+[09:02] Marco Neri: ShipLabelApp
+[09:02] Marco Neri: OrbitERP – Orbit Data API
+[09:03] Marco Neri: svc_labels
+[09:03] Marco Neri: LabelPrintService
+[09:04] Marco Neri: ACM_USER_PRINTERS
+[09:04] Marco Neri: ACM_VIEW_LABELS
+[09:05] Marco Neri: APP01 (produzione), APPTEST01 (test), PRN01 (print server)
+[09:06] Marco Neri: C:\Logs\ShipLabelApp
